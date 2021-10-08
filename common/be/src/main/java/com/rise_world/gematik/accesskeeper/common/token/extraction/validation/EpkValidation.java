@@ -16,9 +16,10 @@ import org.apache.cxf.rs.security.jose.jwa.ContentAlgorithm;
 import org.apache.cxf.rs.security.jose.jwa.KeyAlgorithm;
 import org.apache.cxf.rs.security.jose.jwe.JweHeaders;
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
-import org.apache.cxf.rs.security.jose.jwk.KeyType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Objects;
 
 public class EpkValidation implements ClaimValidation<JweHeaders> {
 
@@ -52,14 +53,14 @@ public class EpkValidation implements ClaimValidation<JweHeaders> {
             throw new AccessKeeperException(errorMessage);
         }
 
-        JsonWebKey epk = claims.getJsonWebKey(ClaimUtils.HEADER_EPK);
+        JsonWebKey epk = extractWebKey(claims);
 
         if (epk == null) {
             LOG.warn("Ephemeral public key is missing");
             throw new AccessKeeperException(errorMessage);
         }
 
-        if (KeyType.EC != epk.getKeyType() ||
+        if (!Objects.equals(JsonWebKey.KEY_TYPE_ELLIPTIC, epk.getProperty(JsonWebKey.KEY_TYPE)) ||
             !CryptoConstants.JWE_BRAINPOOL_CURVE.equals(epk.getProperty(JsonWebKey.EC_CURVE)) ||
             !epk.containsProperty(JsonWebKey.EC_X_COORDINATE) ||
             !epk.containsProperty(JsonWebKey.EC_Y_COORDINATE) ||
@@ -70,8 +71,17 @@ public class EpkValidation implements ClaimValidation<JweHeaders> {
         }
     }
 
+    private JsonWebKey extractWebKey(JweHeaders claims) {
+        try {
+            return claims.getJsonWebKey(ClaimUtils.HEADER_EPK);
+        }
+        catch (Exception e) {
+            LOG.warn("Ephemeral public key format is not valid");
+            return null;
+        }
+    }
 
     private boolean isBase64WithMaxLength(String property, int length) {
-        return LangUtils.isBase64Url(property, false) && StringUtils.length(property) <= length;
+        return property != null &&  LangUtils.isBase64Url(property, false) && StringUtils.length(property) <= length;
     }
 }

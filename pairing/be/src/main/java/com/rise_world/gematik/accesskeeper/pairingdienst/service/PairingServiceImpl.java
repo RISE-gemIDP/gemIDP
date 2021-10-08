@@ -17,6 +17,8 @@ import com.rise_world.gematik.accesskeeper.common.exception.ErrorCodes;
 import com.rise_world.gematik.accesskeeper.common.exception.ErrorMessage;
 import com.rise_world.gematik.accesskeeper.common.service.CertificateReaderService;
 import com.rise_world.gematik.accesskeeper.common.service.CertificateServiceClient;
+import com.rise_world.gematik.accesskeeper.common.token.ClaimUtils;
+import com.rise_world.gematik.accesskeeper.common.token.extraction.validation.EpkValidation;
 import com.rise_world.gematik.accesskeeper.pairingdienst.dto.AccessTokenDTO;
 import com.rise_world.gematik.accesskeeper.pairingdienst.dto.AuthenticationDataDTO;
 import com.rise_world.gematik.accesskeeper.pairingdienst.dto.DeviceStatus;
@@ -29,9 +31,8 @@ import com.rise_world.gematik.accesskeeper.pairingdienst.repository.PairingRepos
 import com.rise_world.gematik.accesskeeper.pairingdienst.service.exception.InvalidSignedPairingDataException;
 import com.rise_world.gematik.accesskeeper.pairingdienst.service.validation.Validations;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.cxf.rs.security.jose.common.JoseConstants;
 import org.apache.cxf.rs.security.jose.common.JoseType;
-import org.apache.cxf.rs.security.jose.jwa.ContentAlgorithm;
-import org.apache.cxf.rs.security.jose.jwa.KeyAlgorithm;
 import org.apache.cxf.rs.security.jose.jwa.SignatureAlgorithm;
 import org.apache.cxf.rs.security.jose.jwe.JweCompactConsumer;
 import org.apache.cxf.rs.security.jose.jwe.JweDecryptionOutput;
@@ -93,6 +94,8 @@ public class PairingServiceImpl implements PairingService {
     private final BlockAllowListRepository balRepository;
     private final Clock clock;
     private final ObjectMapper objectMapper;
+
+    private final EpkValidation epkValidation = new EpkValidation(ErrorCodes.REG1_CLIENT_ERROR);
 
     @Autowired
     @SuppressWarnings("squid:S00107") // parameters required for dependency injection
@@ -313,32 +316,30 @@ public class PairingServiceImpl implements PairingService {
 
     // @AFO: A_21420 - Registrierungsdaten werden entschl&uuml;sselt
     private RegistrationDataDTO decryptRegistrationData(String encryptedRegistrationData) throws IOException {
+        JweHeaders jweHeaders;
         try {
             JweCompactConsumer headerConsumer = new JweCompactConsumer(encryptedRegistrationData);
-            JweHeaders jweHeaders = headerConsumer.getJweHeaders();
-
-            if (!KeyAlgorithm.ECDH_ES_DIRECT.getJwaName().equals(jweHeaders.getAlgorithm())) {
-                LOG.warn("invalid registration data header: alg {}", jweHeaders.getAlgorithm());
-                throw new PairingDienstException(REG1_CLIENT_ERROR, INVALID_HEADER);
-            }
-
-            if (!ContentAlgorithm.A256GCM.getJwaName().equals(jweHeaders.getHeader("enc"))) {
-                LOG.warn("invalid registration data header: enc {}", jweHeaders.getHeader("enc"));
-                throw new PairingDienstException(REG1_CLIENT_ERROR, INVALID_HEADER);
-            }
-
-            if (JoseType.JWT != jweHeaders.getType()) {
-                LOG.warn("invalid registration data header: type {}", jweHeaders.getType());
-                throw new PairingDienstException(REG1_CLIENT_ERROR, INVALID_HEADER);
-            }
-
-            if (!StringUtils.equalsIgnoreCase(jweHeaders.getContentType(), "JSON")) {
-                LOG.warn("invalid registration data header: content type {}", jweHeaders.getContentType());
-                throw new PairingDienstException(REG1_CLIENT_ERROR, INVALID_HEADER);
-            }
+            jweHeaders = headerConsumer.getJweHeaders();
         }
         catch (JweException e) {
             LOG.warn("failed to parse jwe headers", e);
+            throw new PairingDienstException(REG1_CLIENT_ERROR, INVALID_HEADER);
+        }
+
+        try {
+            epkValidation.validate(jweHeaders);
+        }
+        catch (AccessKeeperException a) {
+            throw new PairingDienstException(REG1_CLIENT_ERROR, INVALID_HEADER, a);
+        }
+
+        if (!ClaimUtils.hasJoseType(jweHeaders, JoseType.JWT)) {
+            LOG.warn("invalid registration data header: type {}", jweHeaders.getHeader(JoseConstants.HEADER_TYPE));
+            throw new PairingDienstException(REG1_CLIENT_ERROR, INVALID_HEADER);
+        }
+
+        if (!StringUtils.equals(jweHeaders.getContentType(), "JSON")) {
+            LOG.warn("invalid registration data header: content type {}", jweHeaders.getContentType());
             throw new PairingDienstException(REG1_CLIENT_ERROR, INVALID_HEADER);
         }
 

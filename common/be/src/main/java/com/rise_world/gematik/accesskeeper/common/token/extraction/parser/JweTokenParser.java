@@ -84,6 +84,10 @@ public class JweTokenParser implements TokenParser {
         try {
             String decryptedContent = consumer.getDecryptedContentText(decryption);
             content = ClaimUtils.unboxNestedTo(decryptedContent, IdpJwsJwtCompactConsumer::new);
+
+            if (content != null) {
+                content.getJwtClaims(); // trigger token parsing
+            }
         }
         catch (Exception e) {
             throw new JweException(Error.CONTENT_DECRYPTION_FAILURE, e);

@@ -67,6 +67,10 @@ public class LoopbackUtils {
     }
 
     private static boolean isValidPort(String redirectUri, int startIdx, int endIdx) {
+        if (startIdx == endIdx) {
+            return true;
+        }
+
         if (endIdx - startIdx > 5) {
             return false;
         }

@@ -68,6 +68,9 @@ public class AuthorizationServiceImpl implements AuthorizationService {
     private static final int MAX_LENGTH_NONCE = 32;
     private static final int MAX_LENGTH_CODE_CHALLENGE = 43;
     private static final int MAX_LENGTH_REDIRECT_URI = 2000;
+    private static final int MAX_LENGTH_AMR = 40;
+
+    private static final int MAX_AMR_VALUES = 8;
 
     // @AFO: A_20314 -  Konstante max. Challenge G&uuml;ltigkeit (180s)
     private static final long MAX_CHALLENGE_EXPIRATION = TimeUnit.MINUTES.toSeconds(3);
@@ -410,6 +413,14 @@ public class AuthorizationServiceImpl implements AuthorizationService {
     private List<String> extractAmr(JwtClaims claims) {
         try {
             List<String> amr = claims.getListStringProperty(ClaimUtils.AUTH_METHOD);
+            if (amr.size() > MAX_AMR_VALUES) {
+                LOG.warn("amr value contains too many entries");
+                throw new IllegalArgumentException("amr value contains too many entries");
+            }
+            if (amr.stream().anyMatch(e -> e.length() > MAX_LENGTH_AMR)) {
+                LOG.warn("amr entry is too long");
+                throw new IllegalArgumentException("amr entry is too long");
+            }
             if (amr.contains(OAuth2Constants.AMR_SMART_CARD)) {
                 LOG.warn("amr value 'smart card' is not allowed when using alternative authentication");
                 throw new IllegalArgumentException("amr value 'smart card' is not allowed when using alternative authentication");
@@ -417,8 +428,8 @@ public class AuthorizationServiceImpl implements AuthorizationService {
             return amr;
         }
         catch (Exception e) {
-            LOG.warn("could not extract amr claim");
-            throw new AccessKeeperException(ErrorCodes.VAL1_ALT_AUTH_FAILED, e);
+            LOG.warn("amr claim is not valid");
+            throw new AccessKeeperException(ErrorCodes.VAL1_ALT_AUTH_FAILED);
         }
     }
 

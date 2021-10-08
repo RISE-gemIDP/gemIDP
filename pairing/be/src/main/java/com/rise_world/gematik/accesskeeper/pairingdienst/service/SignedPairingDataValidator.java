@@ -5,6 +5,7 @@
  */
 package com.rise_world.gematik.accesskeeper.pairingdienst.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rise_world.gematik.accesskeeper.common.crypt.CryptoConstants;
 import com.rise_world.gematik.accesskeeper.common.dto.CardType;
 import com.rise_world.gematik.accesskeeper.common.exception.CertReaderException;
@@ -13,9 +14,11 @@ import com.rise_world.gematik.accesskeeper.common.token.ClaimUtils;
 import com.rise_world.gematik.accesskeeper.common.token.extraction.parser.IdpJwsJwtCompactConsumer;
 import com.rise_world.gematik.accesskeeper.pairingdienst.Constants;
 import com.rise_world.gematik.accesskeeper.pairingdienst.dto.DeviceTypeDTO;
+import com.rise_world.gematik.accesskeeper.pairingdienst.dto.SignedPairingDataDTO;
 import com.rise_world.gematik.accesskeeper.pairingdienst.service.exception.InvalidSignedPairingDataException;
 import com.rise_world.gematik.accesskeeper.pairingdienst.service.validation.Validations;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.cxf.rs.security.jose.common.JoseConstants;
 import org.apache.cxf.rs.security.jose.common.JoseType;
 import org.apache.cxf.rs.security.jose.jwa.SignatureAlgorithm;
 import org.apache.cxf.rs.security.jose.jws.EcDsaJwsSignatureVerifier;
@@ -50,18 +53,10 @@ import java.security.spec.ECPoint;
 import java.security.spec.ECPublicKeySpec;
 import java.security.spec.EllipticCurve;
 import java.security.spec.InvalidKeySpecException;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
-import static com.rise_world.gematik.accesskeeper.pairingdienst.token.PairingClaims.PAIRING_DATA_CLAIM_AUTH_CERT_SUBJECT_PUBLIC_KEY_INFO;
-import static com.rise_world.gematik.accesskeeper.pairingdienst.token.PairingClaims.PAIRING_DATA_CLAIM_DEVICE_PRODUCT;
-import static com.rise_world.gematik.accesskeeper.pairingdienst.token.PairingClaims.PAIRING_DATA_CLAIM_ISSUER;
-import static com.rise_world.gematik.accesskeeper.pairingdienst.token.PairingClaims.PAIRING_DATA_CLAIM_KEY_IDENTIFIER;
-import static com.rise_world.gematik.accesskeeper.pairingdienst.token.PairingClaims.PAIRING_DATA_CLAIM_NOT_AFTER;
-import static com.rise_world.gematik.accesskeeper.pairingdienst.token.PairingClaims.PAIRING_DATA_CLAIM_SERIALNUMBER;
 import static com.rise_world.gematik.accesskeeper.pairingdienst.token.PairingClaims.PAIRING_DATA_CLAIM_SE_SUBJECT_PUBLIC_KEY_INFO;
-import static com.rise_world.gematik.accesskeeper.pairingdienst.token.PairingClaims.PAIRING_DATA_CLAIM_VERSION;
 import static com.rise_world.gematik.accesskeeper.pairingdienst.util.Utils.BASE64URL_DECODER;
 import static com.rise_world.gematik.accesskeeper.pairingdienst.util.Utils.BASE64URL_ENCODER;
 import static com.rise_world.gematik.accesskeeper.pairingdienst.util.Utils.timeConstantNotEquals;
@@ -72,19 +67,7 @@ import static com.rise_world.gematik.accesskeeper.pairingdienst.util.Utils.timeC
 @Component
 public class SignedPairingDataValidator {
 
-    private static final String EXPECTED_PAIRING_DATA_VERSION = "1.0";
-
     private static final Logger LOG = LoggerFactory.getLogger(SignedPairingDataValidator.class);
-
-    private static final List<String> REQUIRED_PAIRING_DATA_CLAIMS = Arrays.asList(
-        PAIRING_DATA_CLAIM_VERSION,
-        PAIRING_DATA_CLAIM_SE_SUBJECT_PUBLIC_KEY_INFO,
-        PAIRING_DATA_CLAIM_KEY_IDENTIFIER,
-        PAIRING_DATA_CLAIM_DEVICE_PRODUCT,
-        PAIRING_DATA_CLAIM_SERIALNUMBER,
-        PAIRING_DATA_CLAIM_ISSUER,
-        PAIRING_DATA_CLAIM_NOT_AFTER,
-        PAIRING_DATA_CLAIM_AUTH_CERT_SUBJECT_PUBLIC_KEY_INFO);
 
     private static final ECNamedCurveParameterSpec BC_EC_PARAM_SPEC_SEC_P256_R1 = ECNamedCurveTable.getParameterSpec(CryptoConstants.CURVE_SEC_P256_R1);
     private static final EllipticCurve EC_CURVE_SEC_P256_R1 = EC5Util.convertCurve(
@@ -92,10 +75,12 @@ public class SignedPairingDataValidator {
     private static final ECParameterSpec EC_PARAM_SPEC_SEC_P256_R1 = EC5Util.convertSpec(EC_CURVE_SEC_P256_R1, BC_EC_PARAM_SPEC_SEC_P256_R1);
 
     private CertificateReaderService certificateReaderService;
+    private ObjectMapper objectMapper;
 
     @Autowired
-    public SignedPairingDataValidator(CertificateReaderService certificateReaderService) {
+    public SignedPairingDataValidator(CertificateReaderService certificateReaderService, ObjectMapper objectMapper) {
         this.certificateReaderService = certificateReaderService;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -114,7 +99,13 @@ public class SignedPairingDataValidator {
         validateHeaders(signedPairingData.getJwsHeaders());
         validateSignature(signedPairingData, authCertificate.asX509Certificate().getPublicKey());
 
-        JwtClaims pairingDataClaims = signedPairingData.getJwtClaims();
+        SignedPairingDataDTO pairingDataClaims;
+        try {
+            pairingDataClaims = this.objectMapper.readValue(signedPairingData.getDecodedJwsPayload(), SignedPairingDataDTO.class);
+        }
+        catch (Exception e) {
+            throw new InvalidSignedPairingDataException("format of registration_data.signed_pairing_data cannot be read", e);
+        }
         return validateRegistrationClaims(pairingDataClaims, authCertificate, product);
     }
 
@@ -151,10 +142,9 @@ public class SignedPairingDataValidator {
         }
     }
 
-
     private void validateHeaders(JwsHeaders jwsHeaders) {
-        if (JoseType.JWT != jwsHeaders.getType()) {
-            LOG.warn("invalid signed pairing data: type {}", jwsHeaders.getType());
+        if (!ClaimUtils.hasJoseType(jwsHeaders, JoseType.JWT)) {
+            LOG.warn("invalid signed pairing data: type {}", jwsHeaders.getHeader(JoseConstants.HEADER_TYPE));
             throw new InvalidSignedPairingDataException("invalid token type");
         }
 
@@ -195,30 +185,25 @@ public class SignedPairingDataValidator {
         }
     }
 
-    private String validateRegistrationClaims(JwtClaims pairingDataClaims, AuthCertificate authCertificate, String product) {
-        boolean allRequiredClaimsPresent = REQUIRED_PAIRING_DATA_CLAIMS.stream().allMatch(name -> pairingDataClaims.getClaim(name) != null);
+    private String validateRegistrationClaims(SignedPairingDataDTO pairingDataClaims, AuthCertificate authCertificate, String product) {
 
-        if (!allRequiredClaimsPresent) {
+        if (!pairingDataClaims.isValid()) {
             LOG.warn("missing required claims in registration_data.signed_pairing_data");
             throw new InvalidSignedPairingDataException("required claims in registration_data.signed_pairing_data");
         }
 
-        String pairingDataVersion = pairingDataClaims.getStringProperty(PAIRING_DATA_CLAIM_VERSION);
-
-        if (!Objects.equals(EXPECTED_PAIRING_DATA_VERSION, pairingDataVersion)) {
-            LOG.warn("invalid signed pairing data: version {}", pairingDataVersion);
+        if (!SignedPairingDataDTO.EXPECTED_VERSION.isValid(pairingDataClaims.getPairingDataVersion())) {
+            LOG.warn("invalid signed pairing data: version {}", pairingDataClaims.getPairingDataVersion());
             throw new InvalidSignedPairingDataException("invalid version");
         }
 
-        String keyIdentifier = pairingDataClaims.getStringProperty(PAIRING_DATA_CLAIM_KEY_IDENTIFIER);
-
-        if (!Validations.KEY_IDENTIFIER.isValid(keyIdentifier)) {
+        if (!Validations.KEY_IDENTIFIER.isValid(pairingDataClaims.getKeyIdentifier())) {
             LOG.warn("invalid signed pairing data: invalid keyIdentifier");
-            LOG.debug("keyIdentifier={}", keyIdentifier);
+            LOG.debug("keyIdentifier={}", pairingDataClaims.getKeyIdentifier());
             throw new InvalidSignedPairingDataException("key_identifier is invalid");
         }
 
-        if (!Objects.equals(pairingDataClaims.getClaim(PAIRING_DATA_CLAIM_DEVICE_PRODUCT), product)) {
+        if (!Objects.equals(pairingDataClaims.getProduct(), product)) {
             LOG.warn("invalid signed pairing data: product claim doesn't match product name in device information");
             throw new InvalidSignedPairingDataException("invalid product");
         }
@@ -227,14 +212,14 @@ public class SignedPairingDataValidator {
 
         // validate public key PUK_SE_AUT of device (in pairing_data.se_subject_public_key_info)
         final SubjectPublicKeyInfo claimPairingDataKeyData =
-            SubjectPublicKeyInfo.getInstance(BASE64URL_DECODER.decode(pairingDataClaims.getStringProperty(PAIRING_DATA_CLAIM_SE_SUBJECT_PUBLIC_KEY_INFO)));
+            SubjectPublicKeyInfo.getInstance(BASE64URL_DECODER.decode(pairingDataClaims.getSePublicKeyInfo()));
         // @AFO: A_21439 - die Kurve des PublicKeys des Secure Elements muss P-256 sein
         validatePublicKey(Constants.ALLOWED_EC_NAMED_CURVES_DEVICE_SECURE_ELEMENT, claimPairingDataKeyData);
 
-        return keyIdentifier;
+        return pairingDataClaims.getKeyIdentifier();
     }
 
-    private void validateCertificateClaims(JwtClaims pairingDataClaims, AuthCertificate authCertificate) {
+    private void validateCertificateClaims(SignedPairingDataDTO pairingDataClaims, AuthCertificate authCertificate) {
         try {
             X509Certificate x509Certificate = authCertificate.asX509Certificate();
 
@@ -244,7 +229,7 @@ public class SignedPairingDataValidator {
             Certificate bcAuthCertificate = Certificate.getInstance(authCertificate.asBytes());
             X509CertificateHolder x509CertificateHolder = new X509CertificateHolder(bcAuthCertificate);
             byte[] claimPairingDataPublicKey =
-                BASE64URL_DECODER.decode(pairingDataClaims.getStringProperty(PAIRING_DATA_CLAIM_AUTH_CERT_SUBJECT_PUBLIC_KEY_INFO));
+                BASE64URL_DECODER.decode(pairingDataClaims.getPukCertificateInfo());
             SubjectPublicKeyInfo subjectPublicKeyInfo = x509CertificateHolder.getSubjectPublicKeyInfo();
             byte[] certSubjectPublicKeyInfo = subjectPublicKeyInfo.getEncoded();
             // @AFO: A_21421 - das AUT Zertifikat muss vom Typ ECC sein
@@ -257,7 +242,7 @@ public class SignedPairingDataValidator {
             }
 
             // base64url-encoded, DER-encoded, ASN.1 structure 'issuer' according to RFC5280#section-4.1.2.4
-            byte[] claimIssuer = BASE64URL_DECODER.decode(pairingDataClaims.getStringProperty(PAIRING_DATA_CLAIM_ISSUER));
+            byte[] claimIssuer = BASE64URL_DECODER.decode(pairingDataClaims.getIssuer());
             byte[] certIssuer = x509Certificate.getIssuerX500Principal().getEncoded();
 
             // @AFO: A_21470 - Issuer muss ident sein
@@ -267,7 +252,7 @@ public class SignedPairingDataValidator {
                 throw new InvalidSignedPairingDataException("issuer doesn't match");
             }
 
-            BigInteger claimSerialnumber = new BigInteger(pairingDataClaims.getStringProperty(PAIRING_DATA_CLAIM_SERIALNUMBER), 10);
+            BigInteger claimSerialnumber = new BigInteger(pairingDataClaims.getSerialnumber(), 10);
             BigInteger certSerialnumber = x509Certificate.getSerialNumber();
 
             // @AFO: A_21470 - Seriennummer muss ident sein
@@ -277,7 +262,7 @@ public class SignedPairingDataValidator {
                 throw new InvalidSignedPairingDataException("serialnumber doesn't match");
             }
 
-            Long claimNotAfterEpochSecond = ClaimUtils.getLongPropertyWithoutException(pairingDataClaims, PAIRING_DATA_CLAIM_NOT_AFTER);
+            Long claimNotAfterEpochSecond = pairingDataClaims.getNotAfter();
             long certNotAfterEpochSecond = x509Certificate.getNotAfter().getTime() / 1000L;
 
             // @AFO: A_21470 - notAfter muss ident sein

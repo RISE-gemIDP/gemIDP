@@ -27,6 +27,7 @@ public class KeyVerifier {
         this.codeVerifier = codeVerifier;
     }
 
+    @SuppressWarnings("findbugs:EI_EXPOSE_REP") // it's not advisable to duplicate the key, because each instance needs to be erased after usage
     public byte[] getTokenKey() {
         return tokenKey;
     }

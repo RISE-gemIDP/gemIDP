@@ -42,7 +42,7 @@ public class AuthenticationDataExtractionStrategy implements ExtractionStrategy<
             new HeaderExpiry(clock, ErrorCodes.VAL1_ALT_AUTH_FAILED, ErrorCodes.VAL1_ALT_AUTH_FAILED),
             new EpkValidation(ErrorCodes.VAL1_ALT_AUTH_FAILED),
             h -> {
-                if (!ClaimUtils.NESTED_TOKEN_CTY_VALUE.equals(h.getContentType()) || JoseType.JWT != h.getType()) {
+                if (!ClaimUtils.NESTED_TOKEN_CTY_VALUE.equals(h.getContentType()) || !ClaimUtils.hasJoseType(h, JoseType.JWT)) {
                     throw new AccessKeeperException(ErrorCodes.VAL1_ALT_AUTH_FAILED);
                 }
             });
@@ -63,7 +63,7 @@ public class AuthenticationDataExtractionStrategy implements ExtractionStrategy<
             throw new AccessKeeperException(ErrorCodes.VAL1_ALT_AUTH_FAILED);
         }
 
-        if (JoseType.JWT != jwsHeaders.getType()) {
+        if (!ClaimUtils.hasJoseType(jwsHeaders, JoseType.JWT)) {
             LOG.warn("invalid header value type");
             throw new AccessKeeperException(ErrorCodes.VAL1_ALT_AUTH_FAILED);
         }

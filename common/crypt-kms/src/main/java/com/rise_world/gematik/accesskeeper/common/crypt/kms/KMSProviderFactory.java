@@ -80,6 +80,7 @@ public class KMSProviderFactory implements EncryptionProviderFactory, Decryption
             return new KMSDirectDecryption(tokenResource, toTokenType(type));
         }
         // @AFO: A_21420 - Registrierungsdaten werden mit ECDH_ES_DIRECT entschl&uuml;sselt
+        // @AFO: A_21445 - AccessToken wird mit ECDH_ES_DIRECT entschl&uuml;sselt
         else if (type.isEcdhEsDecrypt()) {
             // ECDH
             return new JweDecryption(new KMSEcdhDirectKeyDecryptionAlgorithm(tokenResource), new AesGcmContentDecryptionAlgorithm(ContentAlgorithm.A256GCM));

@@ -19,6 +19,7 @@ import com.rise_world.gematik.accesskeeper.common.token.extraction.parser.JweTok
 import com.rise_world.gematik.accesskeeper.common.token.extraction.validation.EpkValidation;
 import com.rise_world.gematik.accesskeeper.common.token.extraction.validation.HeaderExpiry;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.cxf.rs.security.jose.common.JoseConstants;
 import org.apache.cxf.rs.security.jose.jwa.SignatureAlgorithm;
 import org.apache.cxf.rs.security.jose.jws.EcDsaJwsSignatureVerifier;
 import org.apache.cxf.rs.security.jose.jws.JwsHeaders;
@@ -36,6 +37,7 @@ import java.security.cert.X509Certificate;
 import java.time.Clock;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @Component
@@ -128,7 +130,13 @@ public class SignedChallengeExtractionStrategy extends AbstractClaimExtractionSt
         if (!ClaimUtils.NESTED_TOKEN_CTY_VALUE.equals(headers.getContentType())) {
             throw new AccessKeeperException(ErrorCodes.AUTH_INVALID_CHALLENGE);
         }
-        if (headers.getX509Chain() == null || headers.getX509Chain().size() != 1) {
+
+        Object x509Chain = headers.getProperty(JoseConstants.HEADER_X509_CHAIN);
+        if (!(x509Chain instanceof List)) {
+            throw new AccessKeeperException(ErrorCodes.AUTH_INVALID_X509_CERT);
+        }
+        List<?> x509List = (List<?>) x509Chain;
+        if (x509List.size() != 1 || !(x509List.get(0) instanceof String)) {
             throw new AccessKeeperException(ErrorCodes.AUTH_INVALID_X509_CERT);
         }
     }

@@ -8,7 +8,6 @@ package com.rise_world.gematik.accesskeeper.common.token.extraction.parser;
 import com.rise_world.gematik.accesskeeper.common.exception.AccessKeeperException;
 import com.rise_world.gematik.accesskeeper.common.exception.ErrorMessage;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.cxf.rs.security.jose.jws.JwsException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,9 +28,11 @@ public class PlainTokenParser implements TokenParser {
         }
 
         try {
-            return new IdpJwsJwtCompactConsumer(token);
+            IdpJwsJwtCompactConsumer consumer = new IdpJwsJwtCompactConsumer(token);
+            consumer.getJwtClaims();  // trigger token parsing
+            return consumer;
         }
-        catch (JwsException e) {
+        catch (Exception e) {
             LOG.warn("Failed to parse token");
             throw new AccessKeeperException(parsingError, e);
         }

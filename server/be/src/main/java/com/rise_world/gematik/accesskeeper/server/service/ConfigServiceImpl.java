@@ -28,6 +28,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -289,7 +290,7 @@ public class ConfigServiceImpl implements ConfigService {
                     validatePort(u);
                 }
             }
-            catch (IllegalArgumentException | URISyntaxException e) {
+            catch (IllegalArgumentException | URISyntaxException | MalformedURLException e) {
                 LOG.error("infomodel: client {} has an invalid redirect uri: {}", c.getId(), redirectUri);
                 return false;
             }
@@ -298,8 +299,9 @@ public class ConfigServiceImpl implements ConfigService {
         return true;
     }
 
-    private void validatePort(URI u) {
-        if (u.getAuthority().contains(":") && u.getPort() <= 0 || u.getPort() > 65535) {
+    private void validatePort(URI u) throws MalformedURLException {
+        u.toURL(); // perform default URL validations
+        if (u.getPort() == 0 || u.getPort() > 65535) {
             throw new IllegalArgumentException("invalid port");
         }
     }

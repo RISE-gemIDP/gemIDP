@@ -55,6 +55,7 @@ public class AccessTokenExtractionStrategy extends AbstractClaimExtractionStrate
 
     @Autowired
     public AccessTokenExtractionStrategy(Clock clock, DecryptionProviderFactory decryptionFactory, KeyProvider keyProvider) {
+        // @AFO: A_21445 im Fehlerfall wird mit der Fehlermeldung AC.1 geantwortet (ident mit REG.1)
         super(new JweTokenParser(decryptionFactory.createDecryptionProvider(TokenType.ACCESS),
                 REG1_CLIENT_ERROR, // @AFO: A_21411 Fehlerfall: Entschlüsselung nicht möglich
                 // @AFO: A_20372 Access Token wird auf gültiges EXP Feld geprüft

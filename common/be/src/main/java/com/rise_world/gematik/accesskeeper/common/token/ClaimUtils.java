@@ -7,6 +7,9 @@ package com.rise_world.gematik.accesskeeper.common.token;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.cxf.jaxrs.json.basic.JsonMapObject;
+import org.apache.cxf.rs.security.jose.common.JoseConstants;
+import org.apache.cxf.rs.security.jose.common.JoseHeaders;
+import org.apache.cxf.rs.security.jose.common.JoseType;
 import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
 import org.apache.cxf.rs.security.jose.jwt.JwtUtils;
 import org.slf4j.Logger;
@@ -16,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
@@ -139,6 +143,17 @@ public class ClaimUtils {
         catch (NumberFormatException nfe) {
             return null;
         }
+    }
+
+    /**
+     * Checks the "typ" header
+     *
+     * @param headers      the header map
+     * @param expectedType the expected {@link JoseType} (must be not null)
+     * @return {@code true} if the typ header exists and has the expected valued
+     */
+    public static boolean hasJoseType(JoseHeaders headers, JoseType expectedType) {
+        return Objects.equals(headers.getHeader(JoseConstants.HEADER_TYPE), expectedType.toString());
     }
 
 }
