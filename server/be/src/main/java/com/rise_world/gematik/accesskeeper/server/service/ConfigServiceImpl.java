@@ -9,11 +9,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rise_world.gematik.accesskeeper.common.OAuth2Constants;
 import com.rise_world.gematik.accesskeeper.common.dto.TokenType;
 import com.rise_world.gematik.accesskeeper.common.token.ClaimUtils;
+import com.rise_world.gematik.accesskeeper.server.dto.RequestSource;
 import com.rise_world.gematik.accesskeeper.server.exception.ConfigException;
 import com.rise_world.gematik.accesskeeper.server.model.Client;
 import com.rise_world.gematik.accesskeeper.server.model.Fachdienst;
 import com.rise_world.gematik.accesskeeper.server.model.InfoModel;
 import com.rise_world.gematik.accesskeeper.server.model.Scope;
+import com.rise_world.gematik.accesskeeper.server.model.SektorApp;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +34,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -99,14 +102,19 @@ public class ConfigServiceImpl implements ConfigService {
         addFachdienste(newCache, infoModel);
         addScopes(newCache, infoModel);
         addClients(newCache, infoModel);
+        addSektorApps(newCache, infoModel);
 
         this.cache = newCache;
     }
 
     private void validateMandatoryFields(InfoModel infoModel) {
-        if (StringUtils.isEmpty(infoModel.getIssuer())) {
-            LOG.error("infomodel: issuer is required");
-            throw new ConfigException("Issuer is not configured");
+        if (StringUtils.isEmpty(infoModel.getIssuerTi())) {
+            LOG.error("infomodel: issuer_ti is required");
+            throw new ConfigException("issuer_ti is not configured");
+        }
+        if (StringUtils.isEmpty(infoModel.getIssuerInet())) {
+            LOG.error("infomodel: issuer_internet is required");
+            throw new ConfigException("issuer_internet is not configured");
         }
         if (StringUtils.isEmpty(infoModel.getPairingEndpoint())) {
             LOG.error("infomodel: pairing endpoint is required");
@@ -186,6 +194,27 @@ public class ConfigServiceImpl implements ConfigService {
         }
     }
 
+    private void addSektorApps(ConfigCache newCache, InfoModel infoModel) {
+        final Map<String, SektorApp> sektorAppMap = newCache.sektorAppMap;
+        final Set<String> processedIds = new HashSet<>();
+
+        for (SektorApp s : infoModel.getSektorApps()) {
+
+            if (isValidSektorApp(processedIds, s)) {
+                sektorAppMap.put(s.getId(), s);
+            }
+            else {
+                if (s.getId() != null) {
+                    sektorAppMap.remove(s.getId());
+                    newCache.invalidSektorAppIds.add(s.getId());
+                }
+                newCache.effectiveInfoModel.getSektorApps().removeIf(s::equals);
+            }
+
+            processedIds.add(s.getId());
+        }
+    }
+
     private boolean isValidFachdienst(Set<String> processedIds, Fachdienst f) {
         if (!isValidVsChar("fachdienst_id", 32, f.getId())) {
             return false;
@@ -262,6 +291,34 @@ public class ConfigServiceImpl implements ConfigService {
         return true;
     }
 
+    private boolean isValidSektorApp(Set<String> processedIds, SektorApp s) {
+        if (!isValidVsChar("sektor_app_id", 32, s.getId())) {
+            return false;
+        }
+
+        if (StringUtils.isEmpty(s.getName()) || s.getName().length() > 128) {
+            LOG.error("infomodel: sektor_app {} has an invalid name: {}", s.getId(), s.getName());
+            return false;
+        }
+
+        if (!isValidIssuerUrl(s.getIdpIss())) {
+            LOG.error("infomodel: sektor_app {} has an invalid issuer url: {}", s.getId(), s.getIdpIss());
+            return false;
+        }
+
+        if (!isValidRedirectUri(s.getKkAppUri())) {
+            LOG.error("infomodel: sektor_app {} has an invalid kk_app_uri: {}", s.getId(), s.getKkAppUri());
+            return false;
+        }
+
+        if (processedIds.contains(s.getId())) {
+            LOG.error("infomodel: duplicate sektor_app_id: {}", s.getId());
+            return false;
+        }
+
+        return true;
+    }
+
     // @AFO: A_20434 - die Liste der redirect URIs darf nicht leer sein
     // @AFO: A_20434 - Validierung der redirect URI laut RFC
     private boolean isValidClient(Set<String> processedIds, Client c) {
@@ -280,23 +337,51 @@ public class ConfigServiceImpl implements ConfigService {
         }
 
         for (String redirectUri : c.getValidRedirectUris()) {
-            try {
-                URI u = new URI(redirectUri);
-
-                if (StringUtils.isEmpty(u.getScheme()) || u.getPath() == null || u.getFragment() != null) {
-                    throw new IllegalArgumentException();
-                }
-                if ("http".equalsIgnoreCase(u.getScheme()) || "https".equalsIgnoreCase(u.getScheme())) {
-                    validatePort(u);
-                }
-            }
-            catch (IllegalArgumentException | URISyntaxException | MalformedURLException e) {
+            if (!isValidRedirectUri(redirectUri)) {
                 LOG.error("infomodel: client {} has an invalid redirect uri: {}", c.getId(), redirectUri);
                 return false;
             }
         }
 
         return true;
+    }
+
+    private boolean isValidIssuerUrl(String issuer) {
+        if (StringUtils.isEmpty(issuer)) {
+            return false;
+        }
+
+        try {
+            URI u = new URI(issuer);
+            if (!"https".equalsIgnoreCase(u.getScheme()) || u.getHost() == null || u.getQuery() != null || u.getFragment() != null) {
+                throw new IllegalArgumentException();
+            }
+            validatePort(u);
+            return true;
+        }
+        catch (IllegalArgumentException | URISyntaxException | MalformedURLException e) {
+            return false;
+        }
+    }
+
+    private boolean isValidRedirectUri(String redirectUri) {
+        if (StringUtils.isEmpty(redirectUri)) {
+            return false;
+        }
+
+        try {
+            URI u = new URI(redirectUri);
+            if (StringUtils.isEmpty(u.getScheme()) || u.getHost() == null || u.getFragment() != null) {
+                throw new IllegalArgumentException();
+            }
+            if ("http".equalsIgnoreCase(u.getScheme()) || "https".equalsIgnoreCase(u.getScheme())) {
+                validatePort(u);
+            }
+            return true;
+        }
+        catch (IllegalArgumentException | URISyntaxException | MalformedURLException e) {
+            return false;
+        }
     }
 
     private void validatePort(URI u) throws MalformedURLException {
@@ -349,8 +434,15 @@ public class ConfigServiceImpl implements ConfigService {
     }
 
     @Override
-    public String getIssuer() {
-        return cache.issuer;
+    public String getIssuer(RequestSource requestSource) {
+        switch (requestSource) {
+            case TI:
+                return cache.issuerTi;
+            case INTERNET:
+                return cache.issuerInternet;
+            default:
+                throw new IllegalArgumentException("Invalid request source: " + requestSource);
+        }
     }
 
     @Override
@@ -386,6 +478,16 @@ public class ConfigServiceImpl implements ConfigService {
     }
 
     @Override
+    public SektorApp getSektorAppById(String appId) {
+        return cache.sektorAppMap.get(appId);
+    }
+
+    @Override
+    public Collection<SektorApp> getSektorApps() {
+        return cache.sektorAppMap.values();
+    }
+
+    @Override
     public Set<String> getInvalidClientIds() {
         return cache.invalidClientIds;
     }
@@ -398,6 +500,11 @@ public class ConfigServiceImpl implements ConfigService {
     @Override
     public Set<String> getInvalidScopeIds() {
         return cache.invalidScopeIds;
+    }
+
+    @Override
+    public Set<String> getInvalidSektorAppIds() {
+        return cache.invalidSektorAppIds;
     }
 
 
@@ -416,7 +523,8 @@ public class ConfigServiceImpl implements ConfigService {
     private static class ConfigCache {
         private final InfoModel parsedInfoModel;
         private final InfoModel effectiveInfoModel;
-        private final String issuer;
+        private final String issuerTi;
+        private final String issuerInternet;
         private final String pairingEndpoint;
         private final String salt;
 
@@ -427,16 +535,19 @@ public class ConfigServiceImpl implements ConfigService {
         private final Map<String, Scope> scopeMap = new HashMap<>();
         private final Map<String, Fachdienst> fachdienstMap = new HashMap<>();
         private final Map<String, Fachdienst> scopeFachdienstMap = new HashMap<>();
+        private final Map<String, SektorApp> sektorAppMap = new HashMap<>();
 
         private final Set<String> invalidClientIds = new TreeSet<>();
         private final Set<String> invalidFachdienstIds = new TreeSet<>();
         private final Set<String> invalidScopeIds = new TreeSet<>();
+        private final Set<String> invalidSektorAppIds = new TreeSet<>();
 
         public ConfigCache(InfoModel infoModel) {
             this.parsedInfoModel = infoModel;
             this.effectiveInfoModel = new InfoModel(infoModel);
 
-            this.issuer = infoModel.getIssuer();
+            this.issuerTi = infoModel.getIssuerTi();
+            this.issuerInternet = infoModel.getIssuerInet();
             this.pairingEndpoint = infoModel.getPairingEndpoint();
             this.salt = infoModel.getSalt();
             this.challengeTimeout = infoModel.getChallengeExpires();

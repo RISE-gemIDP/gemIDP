@@ -29,6 +29,24 @@ public interface AuthorizationService {
     ChallengeDTO createChallenge(String responseType, String clientId, String state, String redirectUri, String scope,
                                  String codeChallenge, String codeChallengeMethod, String nonce);
 
+    /**
+     * Starts a new external authentication
+     *
+     * @param kkAppId             the id of a registered {@link com.rise_world.gematik.accesskeeper.server.model.SektorApp}
+     * @param responseType        the Oauth2 response type
+     * @param clientId            the id of a registered {@link com.rise_world.gematik.accesskeeper.server.model.Client}
+     * @param state               the state parameter
+     * @param redirectUri         a valid (registered) redirect uri
+     * @param scope               the requested scope
+     * @param codeChallenge       the code challenge
+     * @param codeChallengeMethod the code challenge method (must be 'S256')
+     * @param nonce               the nonce (optional)
+     * @return authorization request url for sector application
+     */
+    String startExternalAuthorization(String kkAppId, String responseType, String clientId, String state, String redirectUri, String scope,
+                                      String codeChallenge, String codeChallengeMethod, String nonce);
+
+    RedeemedChallengeDTO redeemExternalAuthCode(String authorizationCode, String state, String kkAppRedirectUri);
 
     /**
      * Parses and validates the signed challenge and creates the auth_code and the sso token

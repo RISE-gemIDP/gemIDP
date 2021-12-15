@@ -8,6 +8,8 @@ package com.rise_world.gematik.accesskeeper.pairingdienst.service.validation;
 import com.rise_world.gematik.accesskeeper.common.util.LangUtils;
 import com.rise_world.gematik.accesskeeper.pairingdienst.Constants;
 
+import java.util.stream.Stream;
+
 import static com.rise_world.gematik.accesskeeper.pairingdienst.util.Utils.BASE64URL_DECODER;
 
 public class Validations {
@@ -33,6 +35,10 @@ public class Validations {
 
     public static Validation<String> expect(String expected) {
         return value -> value != null && value.equals(expected);
+    }
+
+    public static Validation<String> expectOneOf(String... expected) {
+        return value -> value != null && Stream.of(expected).anyMatch(value::equals);
     }
 
     public static Validation<String> base64Url(boolean withPadding) {

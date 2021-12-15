@@ -7,7 +7,7 @@ package com.rise_world.gematik.accesskeeper.server.service;
 
 import com.rise_world.gematik.accesskeeper.common.OAuth2Constants;
 import com.rise_world.gematik.accesskeeper.common.crypt.CryptoConstants;
-import com.rise_world.gematik.accesskeeper.server.dto.DiscoveryDocumentType;
+import com.rise_world.gematik.accesskeeper.server.dto.RequestSource;
 import com.rise_world.gematik.accesskeeper.server.token.creation.TokenCreationStrategy;
 import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,17 +41,18 @@ public class DiscoveryServiceImpl implements DiscoveryService {
     // @AFO: A_20732 - &Ouml;ffentlicher Schl&uuml;ssel zu prk_idp_enc wird mit absoluter URI als 'uri_puk_idp_enc' zum Discovery Document hinzugef&uuml;gt
     // @AFO: A_20457 - Die verwendeten Adressen von authorization-, sso- und token-Endpoint werden als URL im Discovery Document ver&ouml;ffentlicht
     // @AFO: A_20439 - Die anderen Endpunkte des IDPs werden als Claims zum Discovery Document hinzugef&uuml;gt
-    public String getDiscoverDocument(DiscoveryDocumentType type) {
+    public String getDiscoverDocument() {
         Instant now = clock.instant();
         long epochSecond = now.getEpochSecond();
 
-        String issuer = configService.getIssuer();
+        RequestSource requestSource = RequestContext.getRequestSource();
+        String issuer = configService.getIssuer(requestSource);
 
         JwtClaims discoveryClaims = new JwtClaims();
         discoveryClaims.setIssuedAt(epochSecond);
         discoveryClaims.setExpiryTime(now.plus(24, ChronoUnit.HOURS).getEpochSecond());
 
-        discoveryClaims.setProperty("issuer", configService.getIssuer()); // rfc8414 requires 'issuer' (not 'iss'!)
+        discoveryClaims.setProperty("issuer", issuer); // rfc8414 requires 'issuer' (not 'iss'!)
         discoveryClaims.setProperty("jwks_uri", issuer + "/certs");                            // @AFO: A_20458-01 jwks_uri
         discoveryClaims.setProperty("uri_disc", issuer + "/.well-known/openid-configuration"); // @AFO: A_20458-01 uri_disc
         discoveryClaims.setProperty("authorization_endpoint", issuer + "/auth");               // @AFO: A_20458-01 authorization_endpoint   @AFO: A_20457   @AFO: A_20439
@@ -59,9 +60,13 @@ public class DiscoveryServiceImpl implements DiscoveryService {
         discoveryClaims.setProperty("token_endpoint", issuer + "/token");                      // @AFO: A_20458-01 token_endpoint           @AFO: A_20457   @AFO: A_20439
 
         // the external DD needs additional claims
-        if (type == DiscoveryDocumentType.INTERNET) {
+        if (requestSource == RequestSource.INTERNET) {
             discoveryClaims.setProperty("auth_pair_endpoint", issuer + "/auth/alternative");
             discoveryClaims.setProperty("uri_pair", configService.getPairingEndpoint() + "/pairings");
+
+            // external authentication claims
+            discoveryClaims.setProperty("kk_app_list_uri", issuer + "/directory/kk_apps");
+            discoveryClaims.setProperty("third_party_authorization_endpoint", issuer + "/extauth");
         }
 
         discoveryClaims.setProperty("uri_puk_idp_enc", issuer + "/certs/puk_idp_enc");         // @AFO: A_20458-01 uri_puk_idp_enc          @AFO: A_20732

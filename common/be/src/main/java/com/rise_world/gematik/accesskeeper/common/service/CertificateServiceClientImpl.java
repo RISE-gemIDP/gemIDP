@@ -29,6 +29,7 @@ import java.net.UnknownHostException;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -66,8 +67,11 @@ public class CertificateServiceClientImpl implements CertificateServiceClient {
         }
         CertificateCheckRequest request = new CertificateCheckRequest();
 
-        // @AFO: A_4957-01 Es wird der status von genau einem Zertifikat abgefragt
+        // @AFO: A_4957-01 Es wird der Status von genau einem Zertifikat abgefragt
         request.setCertificate(autCert);
+
+        request.setIntendedKeyUsage(1); // digital signature
+        request.setIntendedExtendedKeyUsage(Collections.singletonList("1.3.6.1.5.5.7.3.2")); //  id-kp-clientAuth
 
         request.setPolicyList(POLICY_LIST);
         request.setCheckType(CheckType.OCSP);

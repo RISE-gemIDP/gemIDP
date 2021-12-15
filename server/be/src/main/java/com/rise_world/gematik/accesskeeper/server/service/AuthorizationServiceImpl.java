@@ -21,16 +21,21 @@ import com.rise_world.gematik.accesskeeper.common.token.extraction.ClaimExtracti
 import com.rise_world.gematik.accesskeeper.common.token.extraction.parser.IdpJwsJwtCompactConsumer;
 import com.rise_world.gematik.accesskeeper.common.util.LogTool;
 import com.rise_world.gematik.accesskeeper.common.util.RandomUtils;
+import com.rise_world.gematik.accesskeeper.common.util.UrlBuilder;
 import com.rise_world.gematik.accesskeeper.server.dto.ChallengeDTO;
 import com.rise_world.gematik.accesskeeper.server.dto.RedeemedChallengeDTO;
 import com.rise_world.gematik.accesskeeper.server.dto.RedeemedSsoTokenDTO;
+import com.rise_world.gematik.accesskeeper.server.dto.RemoteIdpDTO;
 import com.rise_world.gematik.accesskeeper.server.dto.UserConsentDTO;
+import com.rise_world.gematik.accesskeeper.server.entity.ExtSessionEntity;
 import com.rise_world.gematik.accesskeeper.server.model.Client;
 import com.rise_world.gematik.accesskeeper.server.model.Fachdienst;
 import com.rise_world.gematik.accesskeeper.server.model.Scope;
 import com.rise_world.gematik.accesskeeper.server.token.creation.TokenCreationStrategy;
 import com.rise_world.gematik.accesskeeper.server.token.extraction.AuthenticationDataExtractionStrategy;
+import com.rise_world.gematik.accesskeeper.server.token.extraction.IdTokenExtractionStrategy;
 import com.rise_world.gematik.accesskeeper.server.util.LoopbackUtils;
+import com.rise_world.gematik.accesskeeper.server.util.PkceUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -42,12 +47,15 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Component;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.security.cert.X509Certificate;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -68,6 +76,7 @@ public class AuthorizationServiceImpl implements AuthorizationService {
     private static final int MAX_LENGTH_NONCE = 32;
     private static final int MAX_LENGTH_CODE_CHALLENGE = 43;
     private static final int MAX_LENGTH_REDIRECT_URI = 2000;
+    private static final int MAX_LENGTH_AUTH_CODE_SEK = 2000;
     private static final int MAX_LENGTH_AMR = 40;
 
     private static final int MAX_AMR_VALUES = 8;
@@ -87,6 +96,7 @@ public class AuthorizationServiceImpl implements AuthorizationService {
     private ClaimExtractionStrategy signedChallengeExtractionStrategy;
     private ClaimExtractionStrategy challengeExtractionStrategy;
     private ClaimExtractionStrategy ssoTokenExtractionStrategy;
+    private ClaimExtractionStrategy idTokenExtractionStrategy;
     private AuthenticationDataExtractionStrategy authenticationDataExtractionStrategy;
     private TokenCreationStrategy challengeStrategy;
     private TokenCreationStrategy authCodeStrategy;
@@ -95,6 +105,9 @@ public class AuthorizationServiceImpl implements AuthorizationService {
     private CertificateReaderService certReader;
     private CertificateServiceClient certificateServiceClient;
     private PairingVerificationInternalEndpoint pairingDienstClient;
+    private SessionStorage sessionStorage;
+    private DirectoryService directoryService;
+    private ExtAuthCodeService extAuthCodeService;
     private TaskExecutor taskExecutor;
 
     @Autowired
@@ -107,11 +120,15 @@ public class AuthorizationServiceImpl implements AuthorizationService {
                                     @Qualifier("signedChallenge") ClaimExtractionStrategy signedChallengeExtractionStrategy,
                                     @Qualifier("challenge") ClaimExtractionStrategy challengeExtractionStrategy,
                                     @Qualifier("ssoToken") ClaimExtractionStrategy ssoTokenExtractionStrategy,
+                                    IdTokenExtractionStrategy idTokenExtractionStrategy,
                                     AuthenticationDataExtractionStrategy authenticationDataExtractionStrategy,
                                     Clock clock,
                                     CertificateReaderService certReader,
                                     CertificateServiceClient certificateServiceClient,
                                     PairingVerificationInternalEndpoint pairingDienstClient,
+                                    SessionStorage sessionStorage,
+                                    DirectoryService directoryService,
+                                    ExtAuthCodeService extAuthCodeService,
                                     TaskExecutor taskExecutor) {
         // CHECKSTYLE:ON
         this.configService = configService;
@@ -124,11 +141,15 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         this.challengeExtractionStrategy = challengeExtractionStrategy;
         this.ssoTokenExtractionStrategy = ssoTokenExtractionStrategy;
         this.authenticationDataExtractionStrategy = authenticationDataExtractionStrategy;
+        this.idTokenExtractionStrategy = idTokenExtractionStrategy;
 
         this.clock = clock;
         this.certReader = certReader;
         this.certificateServiceClient = certificateServiceClient;
         this.pairingDienstClient = pairingDienstClient;
+        this.sessionStorage = sessionStorage;
+        this.directoryService = directoryService;
+        this.extAuthCodeService = extAuthCodeService;
 
         this.taskExecutor = taskExecutor;
     }
@@ -174,7 +195,7 @@ public class AuthorizationServiceImpl implements AuthorizationService {
     public ChallengeDTO createChallenge(String responseType, String clientId, String state, String redirectUri, String scope,
                                         String codeChallenge, String codeChallengeMethod, String nonce) {
 
-        validateParameters(responseType, state, scope, codeChallenge, codeChallengeMethod, nonce);
+        validateAuthParameters(responseType, state, scope, codeChallenge, codeChallengeMethod, nonce);
         final List<String> scopes = ClaimUtils.getScopes(scope);
         validateFachdienst(scopes); // validate scope -> fd mapping
 
@@ -182,14 +203,14 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         long epochSecond = now.getEpochSecond();
 
         JwtClaims challengeClaims = new JwtClaims();
-        challengeClaims.setIssuer(configService.getIssuer());
+        challengeClaims.setIssuer(configService.getIssuer(RequestContext.getRequestSource()));
         challengeClaims.setIssuedAt(epochSecond);
         challengeClaims.setExpiryTime(calculateChallengeExpiryTime(epochSecond)); // @AFO: A_20314 - G&uuml;ltigkeitsdauer der Challenge wird gesetzt
         challengeClaims.setClaim(ClaimUtils.TOKEN_TYPE, TokenType.CHALLENGE.getId());
         challengeClaims.setClaim(ClaimUtils.TOKEN_ID, RandomUtils.randomUUID());
 
         // @AFO: A_20522 - neue Session-Id wird generiert und in die Challenge geschrieben
-        final String sessionId = RandomUtils.randomUUID();
+        final String sessionId = RandomUtils.randomShortUUID();
         challengeClaims.setClaim(ClaimUtils.SESSION_ID, sessionId);
         LogTool.setSessionId(sessionId);
 
@@ -209,6 +230,115 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         String challenge = challengeStrategy.toToken(challengeClaims);
         UserConsentDTO userConsent = createUserConsent(scopes);
         return new ChallengeDTO(challenge, userConsent); // @AFO: A_20523 - Der generierte UserConsent wird gemeinsam mit der Challenge retourniert
+    }
+
+    @Override
+    public String startExternalAuthorization(String kkAppId, String responseType, String clientId, String state, String redirectUri, String scope,
+                                             String codeChallenge, String codeChallengeMethod, String nonce) {
+        validateAuthParameters(responseType, state, scope, codeChallenge, codeChallengeMethod, nonce);
+        final List<String> scopes = ClaimUtils.getScopes(scope);
+        validateFachdienst(scopes); // validate scope -> fd mapping
+
+        RemoteIdpDTO remoteIdpDTO = directoryService.getRemoteIdpConfig(kkAppId);
+
+        // @AFO: A_20522 - neue Session-Id wird generiert und in die Session geschrieben
+        String sessionId = sessionStorage.createSessionId();
+        LogTool.setSessionId(sessionId);
+        LOG.info("Created session");
+
+        ExtSessionEntity sessionEntity = new ExtSessionEntity();
+        sessionEntity.setState(sessionId);
+        sessionEntity.setKkAppId(kkAppId);
+
+        sessionEntity.setClientId(clientId);
+        sessionEntity.setClientRedirectUri(redirectUri);
+        sessionEntity.setClientState(state);
+        // @AFO: A_20698 - scope und codeChallenge werden in die Session &uuml;bernommen
+        sessionEntity.setClientScope(scope);
+        sessionEntity.setClientCodeChallenge(codeChallenge);
+        sessionEntity.setClientNonce(nonce);
+
+        // @AFO: A_22264 -  nonce und code_verifier werden generiert
+        String idpCodeVerifier = PkceUtils.createCodeVerifier();
+        String idpNonce = RandomUtils.randomShortUUID();
+        sessionEntity.setIdpCodeVerifier(idpCodeVerifier);
+        sessionEntity.setIdpNonce(idpNonce);
+
+        sessionStorage.writeSession(sessionEntity);
+
+        // @AFO: A_22264 -  Authorization Request als Client an den zugeh&ouml;rigen sektoralen Identity Provider
+        UrlBuilder urlBuilder = new UrlBuilder(remoteIdpDTO.getAppConfig().getKkAppUri())
+            .appendParameter(ClaimUtils.CLIENT_ID, OAuth2Constants.EXTERNAL_CLIENT_ID)
+            .appendUriParameter(ClaimUtils.REDIRECT_URI, redirectUri)
+            .appendParameter(ClaimUtils.STATE, sessionId)
+            .appendParameter(ClaimUtils.NONCE, idpNonce)
+            .appendParameter(ClaimUtils.RESPONSE_TYPE, OAuth2Constants.RESPONSE_TYPE_CODE)
+            .appendUriParameter(ClaimUtils.SCOPE,  "openid erp_sek_auth")
+            .appendParameter(ClaimUtils.CODE_CHALLENGE_METHOD, OAuth2Constants.PKCE_METHOD_S256)
+            .appendParameter(ClaimUtils.CODE_CHALLENGE, PkceUtils.createCodeChallenge(idpCodeVerifier));
+
+        return urlBuilder.toString();
+    }
+
+    @Override
+    // @AFO: A_22265 - Verarbeitung des AuthCode des sektoralen IDPs
+    public RedeemedChallengeDTO redeemExternalAuthCode(String authorizationCode, String state, String kkAppRedirectUri) {
+        long authTime = clock.instant().getEpochSecond();
+        validateExtAuthCodeParameters(authorizationCode, state, kkAppRedirectUri);
+
+        ExtSessionEntity session = sessionStorage.getSession(state); // @AFO: A_22265 - Sitzungsdaten aus A_22263 werden rekonstruiert
+        if (session == null) {
+            throw new AccessKeeperException(ErrorCodes.EXTAUTH_UNKNOWN_SESSION);
+        }
+
+        try {
+            // @AFO: A_22265 - sektoraler IDP wird anhand der kk_app_id aus den Sitzungsdaten ermittelt
+            RemoteIdpDTO remoteIdpDTO = directoryService.getRemoteIdpConfig(session.getKkAppId());
+
+            String idToken = extAuthCodeService.redeemAuthCode(remoteIdpDTO, authorizationCode, kkAppRedirectUri, session.getIdpCodeVerifier());
+            LOG.info("Received id_token from sektor idp [state={}]", state);
+
+            Map<String, Object> idTokenValidationContext = new HashMap<>();
+            idTokenValidationContext.put(IdTokenExtractionStrategy.CONTEXT_REMOTE_IDP, remoteIdpDTO);
+            idTokenValidationContext.put(IdTokenExtractionStrategy.CONTEXT_SESSION, session);
+
+            final JwtClaims idTokenClaims = idTokenExtractionStrategy.extractAndValidate(idToken, idTokenValidationContext);
+            Map<String, String> cardClaims = extractCardClaims(idTokenClaims);
+            if (idTokenClaims.containsProperty(ClaimUtils.SEK_IDP_ORG_NUMBER)) {
+                cardClaims.put(ClaimUtils.ORG_NAME, idTokenClaims.getStringProperty(ClaimUtils.SEK_IDP_ORG_NUMBER)); // rename claim
+            }
+
+            JwtClaims sessionClaims = sessionToClaims(session);
+            JwtClaims authCodeClaims = createAuthCode(authTime, authTime, getFdScope(sessionClaims), sessionClaims, cardClaims,
+                Collections.singletonList(OAuth2Constants.AMR_MULTI_FACTOR_AUTH));
+
+            Client client = configService.getClientById(session.getClientId());
+            String ssoToken = null;
+            if (client.isNeedsSsoToken()) {
+                JwtClaims ssoClaims = createSsoTokenFromExtIdToken(authTime, authCodeClaims);
+                // @AFO: A_20696 - Verschlüsselung des "SSO_TOKEN"
+                ssoToken = ssoStrategy.toToken(ssoClaims);
+            }
+
+            return new RedeemedChallengeDTO(ssoToken, authCodeStrategy.toToken(authCodeClaims), session.getClientRedirectUri(), session.getClientState());
+        }
+        finally {
+            sessionStorage.destroySession(state);
+        }
+    }
+
+    private JwtClaims sessionToClaims(ExtSessionEntity session) {
+        JwtClaims sessionClaims = new JwtClaims();
+        sessionClaims.setClaim(ClaimUtils.SESSION_ID, session.getState());
+        sessionClaims.setClaim(ClaimUtils.CLIENT_ID, session.getClientId());
+        sessionClaims.setClaim(ClaimUtils.REDIRECT_URI,  session.getClientRedirectUri());
+        sessionClaims.setClaim(ClaimUtils.SCOPE,  session.getClientScope());
+        sessionClaims.setClaim(ClaimUtils.CODE_CHALLENGE_METHOD, OAuth2Constants.PKCE_METHOD_S256);
+        sessionClaims.setClaim(ClaimUtils.CODE_CHALLENGE, session.getClientCodeChallenge());
+        sessionClaims.setClaim(ClaimUtils.RESPONSE_TYPE, OAuth2Constants.RESPONSE_TYPE_CODE);
+        sessionClaims.setClaim(ClaimUtils.STATE, session.getClientState());
+        sessionClaims.setClaim(ClaimUtils.NONCE, session.getClientNonce());
+        return sessionClaims;
     }
 
     /**
@@ -241,7 +371,7 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         return new UserConsentDTO(scopeMap, claimMap);
     }
 
-    private void validateParameters(String responseType, String state, String scope, String codeChallenge, String codeChallengeMethod, String nonce) {
+    private void validateAuthParameters(String responseType, String state, String scope, String codeChallenge, String codeChallengeMethod, String nonce) {
         if (StringUtils.isEmpty(responseType)) {
             LOG.warn("response_type is missing");
             throw new AccessKeeperException(ErrorCodes.AUTH_MISSING_RESPONSE_TYPE);
@@ -283,6 +413,33 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         if (!OAuth2Constants.PKCE_METHOD_S256.equals(codeChallengeMethod)) {
             LOG.warn("code_challenge_method is invalid");
             throw new AccessKeeperException(ErrorCodes.AUTH_INVALID_CHALLENGE_METHOD);
+        }
+    }
+
+    private void validateExtAuthCodeParameters(String authorizationCode, String state, String kkAppRedirectUri) {
+        if (StringUtils.isEmpty(authorizationCode)) {
+            throw new AccessKeeperException(ErrorCodes.EXTAUTH_MISSING_CODE);
+        }
+        if (StringUtils.isEmpty(state)) {
+            throw new AccessKeeperException(ErrorCodes.EXTAUTH_MISSING_STATE);
+        }
+        if (StringUtils.isEmpty(kkAppRedirectUri)) {
+            throw new AccessKeeperException(ErrorCodes.EXTAUTH_MISSING_KKA_REDIRECT_URI);
+        }
+
+        if (authorizationCode.length() > MAX_LENGTH_AUTH_CODE_SEK) {
+            LOG.warn("sek auth_code is invalid");
+            throw new AccessKeeperException(ErrorCodes.EXTAUTH_INVALID_CODE);
+        }
+        if (state.length() != 32 || !state.matches("\\p{XDigit}+")) {
+            LOG.warn("state is invalid");
+            throw new AccessKeeperException(ErrorCodes.EXTAUTH_INVALID_STATE);
+        }
+        try {
+            new URI(kkAppRedirectUri);
+        }
+        catch (URISyntaxException e) {
+            throw new AccessKeeperException(ErrorCodes.EXTAUTH_INVALID_KKA_REDIRECT_URI, e);
         }
     }
 
@@ -449,7 +606,7 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         Client client = configService.getClientById(clientId);
         String ssoToken = null;
         if (client.isNeedsSsoToken()) {
-            JwtClaims ssoClaims = createSsoToken(authTime, authCodeClaims, autCertificate);
+            JwtClaims ssoClaims = createSsoTokenFromCertificate(authTime, authCodeClaims, autCertificate);
             // @AFO: A_20696 - Verschlüsselung des "SSO_TOKEN"
             ssoToken = ssoStrategy.toToken(ssoClaims);
         }
@@ -468,7 +625,7 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         }
 
         JwtClaims authCodeClaims = new JwtClaims();
-        authCodeClaims.setIssuer(configService.getIssuer());
+        authCodeClaims.setIssuer(configService.getIssuer(RequestContext.getRequestSource()));
         authCodeClaims.setIssuedAt(now);
         authCodeClaims.setExpiryTime(calculateAuthCodeExpiryTime(now));  // @AFO: A_20314 - G&uuml;ltigkeitsdauer des AUTH_CODEs wird gesetzt
 
@@ -499,17 +656,29 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         return authCodeClaims;
     }
 
+    private JwtClaims createSsoTokenFromCertificate(long now, JwtClaims authCodeClaims, String autCertificate) {
+        JwtClaims ssoClaims = createSsoToken(now, authCodeClaims);
+        ssoClaims.setClaim(ClaimUtils.CERTIFICATE, autCertificate);
+        ssoClaims.setClaim(ClaimUtils.SSO_GRANT_TYPE, ClaimUtils.SSO_GRANT_TYPE_CERT);
+        return ssoClaims;
+    }
+
+    private JwtClaims createSsoTokenFromExtIdToken(long now, JwtClaims authCodeClaims) {
+        JwtClaims ssoClaims = createSsoToken(now, authCodeClaims);
+        ssoClaims.setClaim(ClaimUtils.SSO_GRANT_TYPE, ClaimUtils.SSO_GRANT_TYPE_EXTTOKEN);
+        return ssoClaims;
+    }
+
     // @AFO: A_20694 - Setzt alle Attribute des SSO-Tokens
-    private JwtClaims createSsoToken(long now, JwtClaims authCodeClaims, String autCertificate) {
+    private JwtClaims createSsoToken(long now, JwtClaims authCodeClaims) {
         JwtClaims ssoClaims = new JwtClaims();
-        ssoClaims.setIssuer(configService.getIssuer());
+        ssoClaims.setIssuer(configService.getIssuer(RequestContext.getRequestSource()));
         ssoClaims.setIssuedAt(now);
         // @AFO: A_20692-01 - Die maximale Gültigkeit wird als Platzhalter in den Token geschrieben
         ssoClaims.setExpiryTime(now + MAX_SSO_EXPIRATION);
 
         ssoClaims.setClaim(ClaimUtils.TOKEN_ID, RandomUtils.randomUUID());
         ssoClaims.setClaim(ClaimUtils.TOKEN_TYPE, TokenType.SSO.getId());
-        ssoClaims.setClaim(ClaimUtils.CERTIFICATE, autCertificate);
 
         ClaimUtils.copy(authCodeClaims, ssoClaims, ClaimUtils.AUTH_TIME, ClaimUtils.CLIENT_ID, ClaimUtils.REDIRECT_URI, ClaimUtils.AUTH_METHOD);
         ClaimUtils.copy(authCodeClaims, ssoClaims, ClaimUtils.CARD_CLAIMS); // copy all consented card claims
@@ -536,15 +705,20 @@ public class AuthorizationServiceImpl implements AuthorizationService {
 
         validateSsoTokenAndChallenge(ssoTokenClaims, challengeClaims, epochSecond, fdScope);
 
-        String autCertificate = ssoTokenClaims.getStringProperty(ClaimUtils.CERTIFICATE);
-
-        try {
-            // @AFO: A_20951 neben der Signatur auch das Authentifizierungszertifikat anhand von OCSP überprüfen
-            certificateServiceClient.validateClientCertificateAgainstOCSP(clock.instant(), autCertificate);
-        }
-        catch (CertificateServiceException e) {
-            // @AFO: A_20949 neue Authentisierung anfordern, wenn die Validierung fehlschlägt
-            throw new AccessKeeperException(ErrorCodes.AUTH_INVALID_SSO_TOKEN, e);
+        final String grantType = ssoTokenClaims.getStringProperty(ClaimUtils.SSO_GRANT_TYPE);
+        if (ClaimUtils.SSO_GRANT_TYPE_CERT.equals(grantType)) {
+            String autCertificate = ssoTokenClaims.getStringProperty(ClaimUtils.CERTIFICATE);
+            if (autCertificate == null) {
+                throw new AccessKeeperException(ErrorCodes.AUTH_INVALID_SSO_TOKEN);
+            }
+            try {
+                // @AFO: A_20951 neben der Signatur auch das Authentifizierungszertifikat anhand von OCSP überprüfen
+                certificateServiceClient.validateClientCertificateAgainstOCSP(clock.instant(), autCertificate);
+            }
+            catch (CertificateServiceException e) {
+                // @AFO: A_20949 neue Authentisierung anfordern, wenn die Validierung fehlschlägt
+                throw new AccessKeeperException(ErrorCodes.AUTH_INVALID_SSO_TOKEN, e);
+            }
         }
 
         // @AFO: A_20459 Übernahme des Attribute AUTH_TIME aus den SSO Token
@@ -569,6 +743,12 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         long ssoExpiryTime = calculateSSOExpiryTime(fdScope, authTime);
         if (epochSecond > ssoExpiryTime) {
             LOG.warn("SSO token is expired [fdScope={}], [authTime={}], [expiry={}]", fdScope, authTime, ssoExpiryTime);
+            throw new AccessKeeperException(ErrorCodes.AUTH_INVALID_SSO_TOKEN);
+        }
+
+        String ssoGrantType = ssoTokenClaims.getStringProperty(ClaimUtils.SSO_GRANT_TYPE);
+        if (!ClaimUtils.SSO_GRANT_TYPES.contains(ssoGrantType)) {
+            LOG.warn("Invalid grant type: {}", ssoGrantType);
             throw new AccessKeeperException(ErrorCodes.AUTH_INVALID_SSO_TOKEN);
         }
 

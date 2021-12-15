@@ -7,11 +7,14 @@ package com.rise_world.gematik.accesskeeper.server.service;
 
 
 import com.rise_world.gematik.accesskeeper.common.dto.TokenType;
+import com.rise_world.gematik.accesskeeper.server.dto.RequestSource;
 import com.rise_world.gematik.accesskeeper.server.model.Client;
 import com.rise_world.gematik.accesskeeper.server.model.Fachdienst;
 import com.rise_world.gematik.accesskeeper.server.model.InfoModel;
 import com.rise_world.gematik.accesskeeper.server.model.Scope;
+import com.rise_world.gematik.accesskeeper.server.model.SektorApp;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
@@ -47,11 +50,12 @@ public interface ConfigService {
     InfoModel getParsedInfoModel();
 
     /**
-     * The token issuer.
+     * The token issuer
      *
+     * @param requestSource ti or internet
      * @return the configured token issuer
      */
-    String getIssuer();
+    String getIssuer(RequestSource requestSource);
 
     /**
      * The pairing endpoint (the public endpoint!)
@@ -71,6 +75,7 @@ public interface ConfigService {
 
     /**
      * Get the timeout for all non-FD tokens (CHALLENGE, ACCESS_CODE, ID, SSO)
+     *
      * @param tokenType the type of the token
      * @return the configured timeout value in seconds
      * @throws IllegalArgumentException if called with a FD specific token type (e.g. ACCESS)
@@ -95,21 +100,31 @@ public interface ConfigService {
 
     /**
      * Returns the ids of all clients which failed client validation
+     *
      * @return the invalid ids
      */
     Set<String> getInvalidClientIds();
 
     /**
      * Returns the ids of all fachdienst entries which failed fachdienst validation
+     *
      * @return the invalid ids
      */
     Set<String> getInvalidFachdienstIds();
 
     /**
      * Returns the ids of all scope entries which failed scope validation
+     *
      * @return the invalid ids
      */
     Set<String> getInvalidScopeIds();
+
+    /**
+     * Returns the ids of all sektor idp entries which failed validation
+     *
+     * @return the invalid ids
+     */
+    Set<String> getInvalidSektorAppIds();
 
     /**
      * A gematik scope is mapped to exactly one fachdienst
@@ -121,7 +136,23 @@ public interface ConfigService {
 
     /**
      * Returns all configured scopes that map to a fachdienst
+     *
      * @return the list of fachdienst scope ids
      */
     List<String> getFachdienstScopes();
+
+    /**
+     * Get a sektor application by id
+     *
+     * @param appId the unique sektor application id
+     * @return the sektor application or {@code null}
+     */
+    SektorApp getSektorAppById(String appId);
+
+    /**
+     * Returns all configured sektor applications
+     *
+     * @return the list of all configured sektor applications
+     */
+    Collection<SektorApp> getSektorApps();
 }

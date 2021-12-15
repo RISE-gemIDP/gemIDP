@@ -5,7 +5,6 @@
  */
 package com.rise_world.gematik.accesskeeper.server.api.discovery;
 
-import com.rise_world.gematik.accesskeeper.server.dto.DiscoveryDocumentType;
 import com.rise_world.gematik.accesskeeper.server.service.DiscoveryService;
 import com.rise_world.gematik.idp.server.api.discovery.DiscoveryEndpoint;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,22 +16,15 @@ import javax.servlet.http.HttpServletRequest;
 @RestController
 public class DiscoveryEndpointImpl implements DiscoveryEndpoint {
 
-    private HttpServletRequest servletRequest;
     private DiscoveryService discoveryService;
 
     @Autowired
     public DiscoveryEndpointImpl(DiscoveryService discoveryService, HttpServletRequest servletRequest) {
         this.discoveryService = discoveryService;
-        this.servletRequest = servletRequest;
     }
 
     @Override
     public String getDiscoveryDocument() {
-        return discoveryService.getDiscoverDocument(getRequestType());
-    }
-
-    private DiscoveryDocumentType getRequestType() {
-        final String header = servletRequest.getHeader("idp-origin");
-        return DiscoveryDocumentType.getByCode(header);
+        return discoveryService.getDiscoverDocument();
     }
 }

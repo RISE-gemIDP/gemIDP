@@ -20,6 +20,7 @@ import org.bouncycastle.asn1.x500.AttributeTypeAndValue;
 import org.bouncycastle.asn1.x500.RDN;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.style.BCStyle;
+import org.bouncycastle.asn1.x500.style.IETFUtils;
 import org.bouncycastle.asn1.x509.CertificatePolicies;
 import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.PolicyInformation;
@@ -39,18 +40,16 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 import static com.rise_world.gematik.accesskeeper.common.crypt.CryptoConstants.BOUNCY_CASTLE;
+import static com.rise_world.gematik.accesskeeper.common.token.ClaimUtils.KVNR_PATTERN;
+import static com.rise_world.gematik.accesskeeper.common.token.ClaimUtils.MAX_LENGTH_NAME;
+import static com.rise_world.gematik.accesskeeper.common.token.ClaimUtils.MAX_LENGTH_TELEMATIK_ID;
 
 @Component
 public class CertificateReaderServiceImpl implements CertificateReaderService {
 
     private static final Logger LOG = LoggerFactory.getLogger(CertificateReaderServiceImpl.class);
-    private static final Pattern KVNR_PATTERN = Pattern.compile("[A-Z][0-9]{9}");
-
-    private static final int MAX_LENGTH_NAME = 64;
-    private static final int MAX_LENGTH_TELEMATIK_ID = 128;
 
     @Override
     public X509Certificate parseCertificate(String pem) throws CertReaderException {
@@ -153,6 +152,11 @@ public class CertificateReaderServiceImpl implements CertificateReaderService {
             }
         }
 
+        if (cardType == CardType.SMCB && cardClaims.get(ClaimUtils.ORG_NAME) == null) {
+            LOG.warn("Required claim 'organizationName' is not available"); // cn is a mandatory field for smcbs
+            throw new CertReaderException("required claims are not available");
+        }
+
         if (StringUtils.length(cardClaims.get(ClaimUtils.FAMILY_NAME)) > MAX_LENGTH_NAME ||
             StringUtils.length(cardClaims.get(ClaimUtils.GIVEN_NAME)) > MAX_LENGTH_NAME ||
             StringUtils.length(cardClaims.get(ClaimUtils.ORG_NAME)) > MAX_LENGTH_NAME ||
@@ -196,11 +200,14 @@ public class CertificateReaderServiceImpl implements CertificateReaderService {
                 else if (BCStyle.SURNAME.equals(attribute.getType())) {
                     cardClaims.put(ClaimUtils.FAMILY_NAME, value);
                 }
-                else if ((cardType == CardType.SMCB || cardType == CardType.EGK) && X509ObjectIdentifiers.organization.equals((attribute.getType()))) {
+                else if (cardType == CardType.EGK && X509ObjectIdentifiers.organization.equals((attribute.getType()))) {
                     cardClaims.put(ClaimUtils.ORG_NAME, value);
                 }
                 else if (cardType == CardType.EGK && BCStyle.OU.equals(attribute.getType()) && value != null && KVNR_PATTERN.matcher(value).matches()) {
                     cardClaims.put(ClaimUtils.ID_NUMBER, value);
+                }
+                else if (cardType == CardType.SMCB && BCStyle.CN.equals(attribute.getType())) {
+                    cardClaims.put(ClaimUtils.ORG_NAME, value);
                 }
             }
         }
@@ -211,13 +218,13 @@ public class CertificateReaderServiceImpl implements CertificateReaderService {
             return null;
         }
         else {
-            return encodable.toString();
+            return IETFUtils.valueToString(encodable);
         }
     }
 
     private void addProfessionClaims(Map<String, String> cardClaims, X509Certificate certificate, CardType cardType) throws CertReaderException {
         for (ProfessionInfo professionInfo : extractProfessionInfos(certificate)) {
-            if (cardType == CardType.HBA || cardType == CardType.SMCB) {
+            if (professionInfo.getRegistrationNumber() != null && (cardType == CardType.HBA || cardType == CardType.SMCB)) {
                 cardClaims.put(ClaimUtils.ID_NUMBER, professionInfo.getRegistrationNumber());
             }
             // gemspec_idp defines profession as single valued, therefore in case of multiple professionOids the last one 'wins'

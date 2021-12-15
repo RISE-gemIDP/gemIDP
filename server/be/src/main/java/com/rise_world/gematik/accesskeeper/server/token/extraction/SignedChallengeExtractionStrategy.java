@@ -38,6 +38,7 @@ import java.time.Clock;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Component
@@ -68,7 +69,7 @@ public class SignedChallengeExtractionStrategy extends AbstractClaimExtractionSt
     }
 
     @Override
-    protected JwtClaims extractInternal(IdpJwsJwtCompactConsumer consumer) {
+    protected JwtClaims extractInternal(IdpJwsJwtCompactConsumer consumer, Map<String, Object> context) {
         final JwsHeaders headers = consumer.getJwsHeaders();
         JwtClaims claims = consumer.getJwtClaims();
 

@@ -33,6 +33,7 @@ public class CertificateEndpointImpl implements CertificateEndpoint {
         JsonWebKeys keys = new JsonWebKeys();
         keys.getKeys().add(transform(certService.getSignatureCert()));
         keys.getKeys().add(transform(certService.getEncryptionKey()));
+        keys.getKeys().add(transform(certService.getSekIdpSignatureKey()));
         return Response.ok(keys).build();
     }
 

@@ -5,6 +5,7 @@
  */
 package com.rise_world.gematik.accesskeeper.common.util;
 
+import org.apache.commons.lang3.StringUtils;
 import org.bouncycastle.util.encoders.Hex;
 
 import java.security.SecureRandom;
@@ -25,6 +26,14 @@ public class RandomUtils {
      */
     public static String randomUUID() {
         return UUID.randomUUID().toString();
+    }
+
+    /**
+     * Creates a random Java UUID without hyphens.
+     * @return the generated random UUID without hyphens
+     */
+    public static String randomShortUUID() {
+        return StringUtils.remove(randomUUID(), '-');
     }
 
     /**

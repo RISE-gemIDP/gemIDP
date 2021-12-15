@@ -18,6 +18,8 @@ public class OAuth2Constants {
     // acr level of assurance
     public static final String ACR_LOA_HIGH = "gematik-ehealth-loa-high";
 
+    public static final String EXTERNAL_CLIENT_ID = "zentraler-idp-dienst";
+
     // amr methods
     public static final String AMR_MULTI_FACTOR_AUTH = "mfa";
     public static final String AMR_SMART_CARD = "sc";

@@ -27,12 +27,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static com.rise_world.gematik.accesskeeper.common.exception.ErrorCodes.REG1_CLIENT_ERROR;
@@ -54,7 +56,8 @@ public class AccessTokenExtractionStrategy extends AbstractClaimExtractionStrate
             JwtConstants.CLAIM_ISSUED_AT, JwtConstants.CLAIM_EXPIRY, JwtConstants.CLAIM_JWT_ID));
 
     @Autowired
-    public AccessTokenExtractionStrategy(Clock clock, DecryptionProviderFactory decryptionFactory, KeyProvider keyProvider) {
+    public AccessTokenExtractionStrategy(Clock clock, DecryptionProviderFactory decryptionFactory,
+            KeyProvider keyProvider, @Value("${token.iat.leeway}") long iatLeeway) {
         // @AFO: A_21445 im Fehlerfall wird mit der Fehlermeldung AC.1 geantwortet (ident mit REG.1)
         super(new JweTokenParser(decryptionFactory.createDecryptionProvider(TokenType.ACCESS),
                 REG1_CLIENT_ERROR, // @AFO: A_21411 Fehlerfall: Entschlüsselung nicht möglich
@@ -64,14 +67,19 @@ public class AccessTokenExtractionStrategy extends AbstractClaimExtractionStrate
                 new EpkValidation(REG1_CLIENT_ERROR)), // @AFO: A_21411 Fehlerfall: ungültiger EPK Header
             // @AFO: A_20372 Access Token wird auf gültiges IAT Feld geprüft
             // @AFO: A_21411 Fehlerfall: ungültiger IAT
-            new IssuedAtValidation(clock, REG1_CLIENT_ERROR), // @AFO: A_21411 Fehlerfall: ungültiger IAT
+            new IssuedAtValidation(clock, REG1_CLIENT_ERROR, iatLeeway), // @AFO: A_21411 Fehlerfall: ungültiger IAT
             // @AFO: A_20365 Prüfung der Signatur gegen den öffentlichen Schlüssel des IdP
             // @AFO: A_21411 Fehlerfall: ungültige IdP Signatur
             new ServerSignatureValidation(keyProvider, REG1_CLIENT_ERROR));
     }
 
     @Override
-    protected JwtClaims extractInternal(IdpJwsJwtCompactConsumer consumer) {
+    public JwtClaims extractAndValidate(String token) {
+        return super.extractAndValidate(token);
+    }
+
+    @Override
+    protected JwtClaims extractInternal(IdpJwsJwtCompactConsumer consumer, Map<String, Object> context) {
         JwtClaims claims = consumer.getJwtClaims();
 
         validateContent(claims);
@@ -118,5 +126,4 @@ public class AccessTokenExtractionStrategy extends AbstractClaimExtractionStrate
             throw new AccessKeeperException(REG1_CLIENT_ERROR);
         }
     }
-
 }

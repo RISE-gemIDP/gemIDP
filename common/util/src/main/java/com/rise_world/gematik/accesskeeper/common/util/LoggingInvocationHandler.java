@@ -19,6 +19,8 @@ import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
 
+import static net.logstash.logback.marker.Markers.append;
+
 public class LoggingInvocationHandler implements InvocationHandler {
 
     private static final Logger LOG = LoggerFactory.getLogger(LoggingInvocationHandler.class);
@@ -63,13 +65,19 @@ public class LoggingInvocationHandler implements InvocationHandler {
         finally {
             stopWatch.stop();
             if (LOG.isInfoEnabled()) {
-                LOG.info("{} remote call done method={} duration={}ms successful={}", systemName, method.getName(), formatNanos(stopWatch.getNanoTime()), successful);
+                String methodName = method.getName();
+                double durationMs = stopWatch.getNanoTime() / 1000000.0;
+                LOG.info(append("component", systemName)
+                    .and(append("method", methodName))
+                    .and(append("duration_in_ms_float", durationMs))
+                    .and(append("successful", successful)),
+                    "{} remote call done method={} duration={}ms successful={}", systemName, methodName, formatMillis(durationMs), successful);
             }
         }
     }
 
-    private String formatNanos(long nanos) {
-        return new DecimalFormat("#.###", DecimalFormatSymbols.getInstance(Locale.ENGLISH)).format(nanos / 1000000.0);
+    private String formatMillis(double millis) {
+        return new DecimalFormat("#.###", DecimalFormatSymbols.getInstance(Locale.ENGLISH)).format(millis);
     }
 
     /**

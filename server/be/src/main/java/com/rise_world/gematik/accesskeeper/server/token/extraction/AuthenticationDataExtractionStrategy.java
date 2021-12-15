@@ -26,6 +26,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
+import java.util.Map;
 
 @Component
 public class AuthenticationDataExtractionStrategy implements ExtractionStrategy<IdpJwsJwtCompactConsumer> {
@@ -49,7 +50,7 @@ public class AuthenticationDataExtractionStrategy implements ExtractionStrategy<
     }
 
     @Override
-    public IdpJwsJwtCompactConsumer extractAndValidate(String token) {
+    public IdpJwsJwtCompactConsumer extractAndValidate(String token, Map<String, Object> context) {
         IdpJwsJwtCompactConsumer consumer = this.tokenParser.parse(token);
         validate(consumer);
         return consumer;

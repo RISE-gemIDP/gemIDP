@@ -20,9 +20,11 @@ import com.rise_world.gematik.accesskeeper.server.token.extraction.validation.Co
 import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
+import java.util.Map;
 
 @Component
 @Qualifier("challenge")
@@ -32,19 +34,20 @@ public class ChallengeExtractionStrategy extends AbstractClaimExtractionStrategy
         ClaimUtils.SCOPE, ClaimUtils.CODE_CHALLENGE_METHOD, ClaimUtils.CODE_CHALLENGE, ClaimUtils.RESPONSE_TYPE, ClaimUtils.STATE};
 
     @Autowired
-    public ChallengeExtractionStrategy(Clock clock, ConfigService configService, KeyProvider keyProvider) {
+    public ChallengeExtractionStrategy(Clock clock, ConfigService configService, KeyProvider keyProvider,
+            @Value("${token.iat.leeway}") long iatLeeway) {
         super(
             new PlainTokenParser(ErrorCodes.AUTH_INVALID_CHALLENGE),
             new ServerSignatureValidation(keyProvider, ErrorCodes.AUTH_MISSING_SERVER_SIGNATURE, ErrorCodes.AUTH_WRONG_SERVER_ALGO, ErrorCodes.AUTH_INVALID_SERVER_SIGNATURE),
             // AFO: A_20314 - G&uuml;ltigkeit der Challenge wird validiert
             new TokenExpiry(clock, ErrorCodes.AUTH_CHALLENGE_MISSING_EXPIRY, ErrorCodes.AUTH_CHALLENGE_EXPIRED),
-            new IssuedAtValidation(clock, ErrorCodes.AUTH_INVALID_CHALLENGE),
+            new IssuedAtValidation(clock, ErrorCodes.AUTH_INVALID_CHALLENGE, iatLeeway),
             new ContentValidation(configService, TokenType.CHALLENGE, RELEVANT_CLAIMS, ErrorCodes.AUTH_INVALID_CHALLENGE)
         );
     }
 
     @Override
-    protected JwtClaims extractInternal(IdpJwsJwtCompactConsumer tokenConsumer) {
+    protected JwtClaims extractInternal(IdpJwsJwtCompactConsumer tokenConsumer, Map<String, Object> context) {
         return tokenConsumer.getJwtClaims();
     }
 }

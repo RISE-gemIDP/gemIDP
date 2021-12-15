@@ -30,6 +30,8 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
+import static net.logstash.logback.marker.Markers.append;
+
 @Order(1)
 @Component
 public class LogFilter implements Filter {
@@ -53,7 +55,7 @@ public class LogFilter implements Filter {
     @Override
     @SuppressWarnings("squid:S1181") // we rethrow all Throwables after catching them
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws ServletException {
-        String remoteAddress = null;
+        String remoteAddress = request.getRemoteAddr();
 
         boolean logRequest = true;
         long start = 0;
@@ -72,7 +74,10 @@ public class LogFilter implements Filter {
 
             logRequest = !ignorePaths.contains(req.getRequestURI());
             if (logRequest) {
-                LOG.info(START_MSG, req.getMethod(), req.getRequestURI(), remoteAddress);
+                LOG.info(append("method", req.getMethod())
+                    .and(append("urlpath", req.getRequestURI()))
+                    .and(append("remote", remoteAddress)),
+                    START_MSG, req.getMethod(), req.getRequestURI(), remoteAddress);
             }
             start = System.nanoTime();
             req.getParameterMap(); // populate map
@@ -86,14 +91,22 @@ public class LogFilter implements Filter {
         finally {
             if (logRequest) {
                 long time = System.nanoTime() - start;
+                double durationMs = time / 1000000.0;
                 int statusCode = res.getStatus();
-                String timeMs = formatNanos(time);
                 if (throwable == null && statusCode < HttpServletResponse.SC_INTERNAL_SERVER_ERROR) {
-                    LOG.info(DONE_MSG, req.getMethod(), req.getRequestURI(), statusCode, timeMs);
+                    LOG.info(append("method", req.getMethod())
+                        .and(append("urlpath", req.getRequestURI()))
+                        .and(append("code", statusCode))
+                        .and(append("duration_in_ms_float", durationMs)),
+                        DONE_MSG, req.getMethod(), req.getRequestURI(), statusCode, formatMillis(durationMs));
                 }
                 else {
                     // Note: slf4j can deal with throwable == null
-                    LOG.error(DONE_MSG, req.getMethod(), req.getRequestURI(), statusCode, timeMs, throwable);
+                    LOG.error(append("method", req.getMethod())
+                        .and(append("urlpath", req.getRequestURI()))
+                        .and(append("code", statusCode))
+                        .and(append("duration_in_ms_float", durationMs)),
+                        DONE_MSG, req.getMethod(), req.getRequestURI(), statusCode, formatMillis(durationMs), throwable);
                 }
             }
 
@@ -101,9 +114,9 @@ public class LogFilter implements Filter {
         }
     }
 
-    private String formatNanos(long nanos) {
+    private String formatMillis(double millis) {
         // show millis with 3 digits (i.e. us)
-        return new DecimalFormat("#.###", DecimalFormatSymbols.getInstance(Locale.ENGLISH)).format(nanos / 1000000.0);
+        return new DecimalFormat("#.###", DecimalFormatSymbols.getInstance(Locale.ENGLISH)).format(millis);
     }
 
     @Override

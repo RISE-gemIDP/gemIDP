@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 /**
  * Validates if the token has a valid issued at
@@ -24,20 +25,30 @@ public class IssuedAtValidation implements ClaimValidation<IdpJwsJwtCompactConsu
 
     private Clock clock;
     private ErrorMessage errorMessage;
+    private long leewayMillis;
 
-    public IssuedAtValidation(Clock clock, ErrorMessage errorMessage) {
+    public IssuedAtValidation(Clock clock, ErrorMessage errorMessage, long leewayMillis) {
         this.clock = clock;
         this.errorMessage = errorMessage;
+        this.leewayMillis = leewayMillis;
     }
 
     @Override
     public void validate(IdpJwsJwtCompactConsumer token) {
         JwtClaims claims = token.getJwtClaims();
         Long issuedAt = claims.getIssuedAt();
-        Instant now = Instant.now(clock);
+        if (issuedAt == null) {
+            LOG.warn("iat is missing");
+            throw new AccessKeeperException(errorMessage);
+        }
 
-        if (issuedAt == null || Instant.ofEpochMilli(issuedAt * 1000L).isAfter(now)) {
-            LOG.warn("iat is missing or invalid");
+        // calculate issuedAt considering a configured leeway
+        Instant issuedAtInstantWithLeeway = Instant.ofEpochSecond(issuedAt).minus(leewayMillis, ChronoUnit.MILLIS);
+
+        Instant now = Instant.now(clock);
+        if (issuedAtInstantWithLeeway.isAfter(now)) {
+
+            LOG.warn("iat is invalid [issuedAtInstantWithLeeway={}], [now={}]", issuedAtInstantWithLeeway, now);
             throw new AccessKeeperException(errorMessage);
         }
     }

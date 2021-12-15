@@ -18,12 +18,18 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
 public class ClaimUtils {
+
+    public static final Pattern KVNR_PATTERN = Pattern.compile("[A-Z][0-9]{9}");
+    public static final int MAX_LENGTH_NAME = 64;
+    public static final int MAX_LENGTH_TELEMATIK_ID = 128;
 
     public static final String TOKEN_ID = "jti";
     public static final String SESSION_ID = "snc";
@@ -31,11 +37,14 @@ public class ClaimUtils {
     public static final String SCOPE = "scope";
     public static final String CLIENT_ID = "client_id";
     public static final String CERTIFICATE = "x5c";
+
     public static final String GIVEN_NAME = "given_name";
     public static final String FAMILY_NAME = "family_name";
     public static final String ORG_NAME = "organizationName";
     public static final String PROFESSION = "professionOID";
     public static final String ID_NUMBER = "idNummer";
+    public static final String SEK_IDP_ORG_NUMBER = "organization_number";
+
     public static final String AUTH_PARTY = "azp";
     public static final String AUTH_CTX = "acr";
     public static final String AUTH_METHOD = "amr";
@@ -52,14 +61,20 @@ public class ClaimUtils {
     public static final String CODE_VERIFIER = "code_verifier";
     public static final String CHALLENGE_TOKEN = "challenge_token";
     public static final String AUTH_CERT = "auth_cert";
+    public static final String SSO_GRANT_TYPE = "sso_gt";
 
     public static final String HEADER_APU = "apu";
     public static final String HEADER_APV = "apv";
     public static final String HEADER_EPK = "epk";
 
     public static final String NESTED_TOKEN_CTY_VALUE = "NJWT";
+    public static final String PROFESSION_OID_VERSICHERTER = "1.2.276.0.76.4.49";
 
     public static final List<String> CARD_CLAIMS = Collections.unmodifiableList(Arrays.asList(GIVEN_NAME, FAMILY_NAME, ORG_NAME, PROFESSION, ID_NUMBER));
+
+    public static final String SSO_GRANT_TYPE_CERT = "cert";
+    public static final String SSO_GRANT_TYPE_EXTTOKEN = "exttoken";
+    public static final Set<String> SSO_GRANT_TYPES = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(SSO_GRANT_TYPE_CERT, SSO_GRANT_TYPE_EXTTOKEN)));
 
     private static final Logger LOG = LoggerFactory.getLogger(ClaimUtils.class);
 

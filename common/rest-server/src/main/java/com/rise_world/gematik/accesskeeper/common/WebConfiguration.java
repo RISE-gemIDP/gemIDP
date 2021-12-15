@@ -8,6 +8,7 @@ package com.rise_world.gematik.accesskeeper.common;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -31,6 +32,9 @@ public class WebConfiguration {
     }
 
     @Bean
+    @Primary
+    // TaskSchedulingAutoConfiguration enabled via @EnableScheduling produces an instance of ThreadPoolTaskScheduler which implements TaskExecutor
+    // Therefore we have to define this bean as primary TaskExecutor
     public TaskExecutor getAsyncExecutor() {
         ThreadPoolTaskExecutor poolExecutor = new ThreadPoolTaskExecutor();
         poolExecutor.setTaskDecorator(new ContextCopyingDecorator());

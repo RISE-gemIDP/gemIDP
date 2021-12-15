@@ -28,7 +28,15 @@ public interface CertService {
 
     /**
      * Retrieves the public key of the encryption key pair
+     *
      * @return Json Web Key from puk_idp_enc
      */
     JsonWebKey getEncryptionKey();
+
+    /**
+     * Retrieves the public key used by sectoral IDPs to verify private_jwts
+     *
+     * @return Jwon Web Key from puk_idp_sig_sek
+     */
+    JsonWebKey getSekIdpSignatureKey();
 }

@@ -15,14 +15,20 @@ public class LoopbackUtils {
 
     // @AFO: A_20434 - wenn die konfigurierte URI eine Loopback Adresse ist, dann darf sich der Port unterscheiden
     public static boolean matchesLoopback(String configuredUri, String redirectUri) {
-        if (isLoopbackUri(LOOPBACK_PREFIX_IPV4, redirectUri) && isLoopbackUri(LOOPBACK_PREFIX_IPV4, configuredUri) &&
-            normalizeLoopbackUri(LOOPBACK_PREFIX_IPV4, redirectUri).equals(normalizeLoopbackUri(LOOPBACK_PREFIX_IPV4, configuredUri))) {
-            return true;
+        try {
+            if (isLoopbackUri(LOOPBACK_PREFIX_IPV4, redirectUri) && isLoopbackUri(LOOPBACK_PREFIX_IPV4, configuredUri) &&
+                normalizeLoopbackUri(LOOPBACK_PREFIX_IPV4, redirectUri).equals(normalizeLoopbackUri(LOOPBACK_PREFIX_IPV4, configuredUri))) {
+                return true;
+            }
+            else {
+                return isLoopbackUri(LOOPBACK_PREFIX_IPV6, redirectUri) && isLoopbackUri(LOOPBACK_PREFIX_IPV6, configuredUri) &&
+                    normalizeLoopbackUri(LOOPBACK_PREFIX_IPV6, redirectUri).equals(normalizeLoopbackUri(LOOPBACK_PREFIX_IPV6, configuredUri));
+            }
         }
-        else {
-            return isLoopbackUri(LOOPBACK_PREFIX_IPV6, redirectUri) && isLoopbackUri(LOOPBACK_PREFIX_IPV6, configuredUri) &&
-                normalizeLoopbackUri(LOOPBACK_PREFIX_IPV6, redirectUri).equals(normalizeLoopbackUri(LOOPBACK_PREFIX_IPV6, configuredUri));
+        catch (InvalidPortException e) {
+            return false;
         }
+
     }
 
     public static boolean isLoopbackUri(String loopbackPrefix, String redirectUri) {
@@ -59,7 +65,7 @@ public class LoopbackUtils {
             }
 
             if (!isValidPort(redirectUri, prefixLength + 1, idx)) {
-                return "";
+                throw new InvalidPortException();
             }
 
             return loopbackPrefix + redirectUri.substring(idx);

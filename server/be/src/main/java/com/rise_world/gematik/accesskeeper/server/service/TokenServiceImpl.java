@@ -20,6 +20,7 @@ import com.rise_world.gematik.accesskeeper.server.model.Client;
 import com.rise_world.gematik.accesskeeper.server.model.Fachdienst;
 import com.rise_world.gematik.accesskeeper.server.token.creation.AesTokenCreationStrategy;
 import com.rise_world.gematik.accesskeeper.server.token.extraction.KeyVerifier;
+import com.rise_world.gematik.accesskeeper.server.util.PkceUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
@@ -183,10 +184,7 @@ public class TokenServiceImpl implements TokenService {
     }
 
     private boolean verifyCodeChallenge(String codeVerifier, String codeChallenge) {
-        byte[] hashBytes = DigestUtils.sha256(codeVerifier.getBytes());
-        // base64 url encoding without padding as defined in RFC7636 Appendix A
-        String encoded = Base64.getUrlEncoder().withoutPadding().encodeToString(hashBytes);
-        return codeChallenge.equals(encoded);
+        return codeChallenge.equals(PkceUtils.createCodeChallenge(codeVerifier));
     }
 
     private Fachdienst getFachdienst(List<String> scopes) {
@@ -234,7 +232,7 @@ public class TokenServiceImpl implements TokenService {
         relevantClaims.setSubject(createSubject(fachdienst, idNumber, config.getSalt()));
         long iat = clock.instant().getEpochSecond();
 
-        relevantClaims.setIssuer(config.getIssuer());
+        relevantClaims.setIssuer(config.getIssuer(RequestContext.getRequestSource()));
         relevantClaims.setIssuedAt(iat);
         // @AFO: A_20313-01 - Inhalte des Claims
         relevantClaims.setExpiryTime(calculateAccessTokenExpiryTime(fachdienst, iat));
@@ -273,7 +271,7 @@ public class TokenServiceImpl implements TokenService {
 
         long iat = clock.instant().getEpochSecond();
 
-        relevantClaims.setIssuer(config.getIssuer());
+        relevantClaims.setIssuer(config.getIssuer(RequestContext.getRequestSource()));
         relevantClaims.setIssuedAt(iat);
         // @AFO: A_20462 - Maximale Gültigkeitsdauer des "ID_TOKEN"
         // @AFO: A_20313-01 - Inhalte des Claims

@@ -26,7 +26,7 @@ public class AuthorizationContext {
     }
 
     /**
-     * Gets the {@link AccessTokenDTO} of the current thread.
+     * Sets the {@link AccessTokenDTO} for the current thread.
      *
      * @param accessToken the {@link AccessTokenDTO}
      */

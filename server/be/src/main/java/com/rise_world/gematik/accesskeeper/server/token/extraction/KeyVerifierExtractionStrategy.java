@@ -27,6 +27,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
+import java.util.Map;
 
 @Component
 @Qualifier("keyVerifier")
@@ -46,7 +47,7 @@ public class KeyVerifierExtractionStrategy implements ExtractionStrategy<KeyVeri
     }
 
     @Override
-    public KeyVerifier extractAndValidate(String token) {
+    public KeyVerifier extractAndValidate(String token, Map<String, Object> context) {
         KeyVerifier decryptedToken = null;
         try {
             JweCompactConsumer consumer = new JweCompactConsumer(token);

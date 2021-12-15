@@ -7,7 +7,7 @@ package com.rise_world.gematik.accesskeeper.server.api.authorization;
 
 import com.rise_world.gematik.accesskeeper.common.exception.AccessKeeperException;
 import com.rise_world.gematik.accesskeeper.common.exception.ErrorCodes;
-import com.rise_world.gematik.accesskeeper.server.api.util.UrlBuilder;
+import com.rise_world.gematik.accesskeeper.common.util.UrlBuilder;
 import com.rise_world.gematik.accesskeeper.server.dto.ChallengeDTO;
 import com.rise_world.gematik.accesskeeper.server.dto.RedeemedChallengeDTO;
 import com.rise_world.gematik.accesskeeper.server.dto.RedeemedSsoTokenDTO;
@@ -16,8 +16,6 @@ import com.rise_world.gematik.accesskeeper.server.service.AuthorizationService;
 import com.rise_world.gematik.idp.server.api.authorization.AuthorizationEndpoint;
 import com.rise_world.gematik.idp.server.api.authorization.ChallengeResponse;
 import com.rise_world.gematik.idp.server.api.authorization.UserConsent;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -25,13 +23,12 @@ import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Response;
 import java.net.URI;
 
+import static com.rise_world.gematik.accesskeeper.server.api.util.ParameterUtils.validateDuplicateClientIdRedirectUri;
 import static com.rise_world.gematik.accesskeeper.server.api.util.ParameterUtils.validateDuplicateParameters;
 
 // @AFO: A_20686 - separates Interface f&uuml;r AUTH
 @RestController
 public class AuthorizationEndpointImpl implements AuthorizationEndpoint {
-
-    private static final Logger LOG = LoggerFactory.getLogger(AuthorizationEndpointImpl.class);
 
     private static final String CODE = "code";
     private static final String SSO_TOKEN = "ssotoken";
@@ -57,7 +54,7 @@ public class AuthorizationEndpointImpl implements AuthorizationEndpoint {
                                        String nonce) {
 
         // @AFO: A_20434 - keine doppelten Parameter
-        validateDuplicateClientIdRedirectId();
+        validateDuplicateClientIdRedirectUri(servletRequest);
         authorizationService.validateClientAndRedirectUri(clientId, redirectUri);
 
         ChallengeDTO challengeDTO;
@@ -140,14 +137,5 @@ public class AuthorizationEndpointImpl implements AuthorizationEndpoint {
             .toString();
         // @AFO: A_20693 - AUTH_CODE und SSO Token werden via Redirect an den Client gesendet
         return Response.status(Response.Status.FOUND).location(URI.create(redirectUri)).build();
-    }
-
-    private void validateDuplicateClientIdRedirectId() {
-        final String[] clientIds = servletRequest.getParameterMap().get("client_id");
-        final String[] redirectUris = servletRequest.getParameterMap().get("redirect_uri");
-        if ((clientIds != null && clientIds.length > 1) || (redirectUris != null && redirectUris.length > 1)) {
-            LOG.warn("Client sent duplicate client_id/redirect_uri");
-            throw new AccessKeeperException(ErrorCodes.AUTH_DUPLICATE_PARAMETERS);
-        }
     }
 }

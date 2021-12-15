@@ -9,7 +9,9 @@ public enum Endpoint {
     AUTH("idp_sig"),
     // @AFO: A_20691-01 - Der Schl&uuml;ssel disc_sig wird dem Discovery Endpoint zugeordnet
     DISC("disc_sig"),
-    TOKEN("idp_sig");
+    TOKEN("idp_sig"),
+    // @AFO: A_22266 - Der Schl&uuml;ssel idp_sig_sek wird dem Token private_key_jwt zugeordnet
+    EXT_AUTH("idp_sig_sek");
 
     private static final String PRIVATE_KEY_PREFIX = "prk_";
     private String keyName;

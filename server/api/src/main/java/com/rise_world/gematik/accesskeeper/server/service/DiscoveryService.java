@@ -5,8 +5,6 @@
  */
 package com.rise_world.gematik.accesskeeper.server.service;
 
-import com.rise_world.gematik.accesskeeper.server.dto.DiscoveryDocumentType;
-
 /**
  * Provides methods for retrieving and updating the discovery document
  */
@@ -15,9 +13,8 @@ public interface DiscoveryService {
     /**
      * Creates the discovery document
      *
-     * @param type the type of the requested document
      * @return Discovery Document in form of JWS Compact Serialization
      */
-    String getDiscoverDocument(DiscoveryDocumentType type);
+    String getDiscoverDocument();
 
 }

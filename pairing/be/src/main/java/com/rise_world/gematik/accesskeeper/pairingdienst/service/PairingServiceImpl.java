@@ -22,6 +22,7 @@ import com.rise_world.gematik.accesskeeper.common.token.extraction.validation.Ep
 import com.rise_world.gematik.accesskeeper.pairingdienst.dto.AccessTokenDTO;
 import com.rise_world.gematik.accesskeeper.pairingdienst.dto.AuthenticationDataDTO;
 import com.rise_world.gematik.accesskeeper.pairingdienst.dto.DeviceStatus;
+import com.rise_world.gematik.accesskeeper.pairingdienst.dto.DeviceTypeDTO;
 import com.rise_world.gematik.accesskeeper.pairingdienst.dto.RegistrationDataDTO;
 import com.rise_world.gematik.accesskeeper.pairingdienst.entity.PairingEntryEntity;
 import com.rise_world.gematik.accesskeeper.pairingdienst.exception.ErrorDetails;
@@ -31,6 +32,8 @@ import com.rise_world.gematik.accesskeeper.pairingdienst.repository.PairingRepos
 import com.rise_world.gematik.accesskeeper.pairingdienst.service.exception.InvalidSignedPairingDataException;
 import com.rise_world.gematik.accesskeeper.pairingdienst.service.validation.Validations;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
 import org.apache.cxf.rs.security.jose.common.JoseConstants;
 import org.apache.cxf.rs.security.jose.common.JoseType;
 import org.apache.cxf.rs.security.jose.jwa.SignatureAlgorithm;
@@ -69,6 +72,7 @@ import static com.rise_world.gematik.accesskeeper.pairingdienst.exception.ErrorD
 import static com.rise_world.gematik.accesskeeper.pairingdienst.exception.ErrorDetails.INVALID_SIGNED_PAIRING_DATA;
 import static com.rise_world.gematik.accesskeeper.pairingdienst.exception.ErrorDetails.OCSP_CHECK_FAILED;
 import static com.rise_world.gematik.accesskeeper.pairingdienst.exception.ErrorDetails.PAIRING_ENTRY_NOT_FOUND;
+import static net.logstash.logback.marker.Markers.append;
 
 /**
  * Implementation of {@code PairingService}.
@@ -77,6 +81,7 @@ import static com.rise_world.gematik.accesskeeper.pairingdienst.exception.ErrorD
 public class PairingServiceImpl implements PairingService {
 
     private static final Logger LOG = LoggerFactory.getLogger(PairingServiceImpl.class);
+    private static final Logger SMARTPHONE_LOG = LoggerFactory.getLogger("com.rise_world.gematik.accesskeeper.pairingdienst.service.SmartphoneLog");
 
     // @AFO: A_21419 - erlaubte Methoden
     private static final List<String> REG_METHODS = Arrays.asList(OAuth2Constants.AMR_MULTI_FACTOR_AUTH, OAuth2Constants.AMR_SMART_CARD, OAuth2Constants.AMR_PIN);
@@ -132,7 +137,14 @@ public class PairingServiceImpl implements PairingService {
 
             RegistrationDataDTO registrationData = decryptRegistrationData(encryptedRegistrationData);
 
-            DeviceStatus deviceStatus = balRepository.fetchDeviceStatus(registrationData.getDeviceInformation().getDeviceType());
+            DeviceTypeDTO deviceType = registrationData.getDeviceInformation().getDeviceType();
+            DeviceStatus deviceStatus = balRepository.fetchDeviceStatus(deviceType);
+
+            SMARTPHONE_LOG.info(append("device_type", deviceType)
+                    .and(append("device_request_type", "PAIRING"))
+                    .and(append("device_status", deviceStatus)),
+                    "register pairing using {} during {} resulting in {}",
+                    ToStringBuilder.reflectionToString(deviceType, ToStringStyle.NO_CLASS_NAME_STYLE), "PAIRING", deviceStatus);
 
             // @AFO: A_21423 Prüfung ob Gerätetyp auf der Block-Liste eingetragen ist und Rückgabe mit entsprechender
             // Fehlermeldung REG.2
@@ -213,10 +225,18 @@ public class PairingServiceImpl implements PairingService {
         }
 
         try {
+            DeviceTypeDTO deviceType = authenticationData.getDeviceInformation().getDeviceType();
             // @AFO A_21432 Prüfung ob Gerätetyp auf der Block-Liste eingetragen ist und Rückgabe mit entsprechender
             // Fehlermeldung VAL.1
             // @AFO A_21437 Prüfung ob Gerätetyp NICHT auf der Block-Liste eingetragen ist. Verarbeitung wird fortgeführt.
-            DeviceStatus deviceStatus = balRepository.fetchDeviceStatus(authenticationData.getDeviceInformation().getDeviceType());
+            DeviceStatus deviceStatus = balRepository.fetchDeviceStatus(deviceType);
+
+            SMARTPHONE_LOG.info(append("device_type", deviceType)
+                    .and(append("device_request_type", "AUTH"))
+                    .and(append("device_status", deviceStatus)),
+                    "alternative authorization using {} during {} resulting in {}",
+                    ToStringBuilder.reflectionToString(deviceType, ToStringStyle.NO_CLASS_NAME_STYLE), "AUTH",
+                    deviceStatus);
 
             if (deviceStatus == DeviceStatus.BLOCK) {
                 LOG.warn("authentication not allowed, device is on block list");

@@ -53,6 +53,15 @@ public class AccessKeeperExceptionMapper implements ExceptionMapper<AccessKeeper
             perfOperation = PerfLogConstants.IDP_PERF_OCSP_OPERATION;
             perfErrorCode = PerfLogConstants.IDP_PERF_ERROR_NO_RESPONSE;
         }
+        else if (e.getErrorMessage() == ErrorCodes.EXTAUTH_IDP_NOT_AVAILABLE) {
+            perfOperation = PerfLogConstants.IDP_PERF_SEK_IDP_OPERATION;
+            perfErrorCode = PerfLogConstants.IDP_PERF_SEK_IDP_ERROR_NO_RESPONSE;
+        }
+        else if (e.getErrorMessage() == ErrorCodes.EXTAUTH_FAILED_TO_REDEEM ||
+            e.getErrorMessage() == ErrorCodes.EXTAUTH_INVALID_ID_TOKEN) {
+            perfOperation = PerfLogConstants.IDP_PERF_SEK_IDP_OPERATION;
+            perfErrorCode = PerfLogConstants.IDP_PERF_SEK_IDP_ERROR_INVALID_RESPONSE;
+        }
         if (e.getCause() instanceof CertificateServiceException) {
             perfOperation = PerfLogConstants.IDP_PERF_OCSP_OPERATION;
             int certServiceCode = ((CertificateServiceException) e.getCause()).getCode();

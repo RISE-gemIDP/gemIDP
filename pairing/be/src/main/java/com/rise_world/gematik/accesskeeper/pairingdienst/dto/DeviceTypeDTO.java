@@ -15,7 +15,7 @@ import com.rise_world.gematik.accesskeeper.pairingdienst.service.validation.Vali
  */
 public class DeviceTypeDTO {
 
-    private static final Validation<String> EXPECTED_VERSION = Validations.expect("1.0");
+    private static final Validation<String> EXPECTED_VERSION = Validations.expectOneOf("1.0", "1.1");
     private static final Validation<String> MAX_FIELD_LENGTH = Validations.maxLength(300);
 
     @JsonProperty("device_type_data_version")
@@ -29,6 +29,9 @@ public class DeviceTypeDTO {
     @JsonProperty("os_version")
     private String osVersion;
 
+    @JsonProperty("security_patchlevel")
+    private String securityPatchlevel;
+
     @JsonIgnore
     public boolean isValid() {
         return EXPECTED_VERSION.isValid(deviceTypeDataVersion) &&
@@ -36,7 +39,8 @@ public class DeviceTypeDTO {
                 MAX_FIELD_LENGTH.isValid(product) &&
                 MAX_FIELD_LENGTH.isValid(model) &&
                 MAX_FIELD_LENGTH.isValid(os) &&
-                MAX_FIELD_LENGTH.isValid(osVersion);
+                MAX_FIELD_LENGTH.isValid(osVersion) &&
+                (securityPatchlevel == null || ("1.1".equals(deviceTypeDataVersion) && MAX_FIELD_LENGTH.isValid(securityPatchlevel)));
     }
 
     public String getDeviceTypeDataVersion() {
@@ -86,4 +90,13 @@ public class DeviceTypeDTO {
     public void setOsVersion(String osVersion) {
         this.osVersion = osVersion;
     }
+
+    public String getSecurityPatchlevel() {
+        return securityPatchlevel;
+    }
+
+    public void setSecurityPatchlevel(String securityPatchlevel) {
+        this.securityPatchlevel = securityPatchlevel;
+    }
+
 }

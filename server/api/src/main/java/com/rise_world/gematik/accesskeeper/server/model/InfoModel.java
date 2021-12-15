@@ -12,7 +12,11 @@ import java.util.List;
 
 public class InfoModel {
 
-    private String issuer;
+    @JsonProperty("issuer_ti")
+    private String issuerTi;
+    @JsonProperty("issuer_internet")
+    private String issuerInet;
+
     private String pairingEndpoint;
     private String salt;
 
@@ -23,26 +27,38 @@ public class InfoModel {
     @JsonProperty("public_clients")
     private List<Client> publicClients;
     private List<Fachdienst> fachdienste;
+    @JsonProperty("sektor_apps")
+    private List<SektorApp> sektorApps;
 
     public InfoModel() {
     }
 
     public InfoModel(InfoModel src) {
-        this.issuer = src.issuer;
+        this.issuerTi = src.issuerTi;
+        this.issuerInet = src.issuerInet;
         this.pairingEndpoint = src.pairingEndpoint;
         this.challengeExpires = src.challengeExpires;
         this.authCodeExpires = src.authCodeExpires;
         this.getScopes().addAll(src.getScopes());
         this.getPublicClients().addAll(src.getPublicClients());
         this.getFachdienste().addAll(src.getFachdienste());
+        this.getSektorApps().addAll(src.getSektorApps());
     }
 
-    public String getIssuer() {
-        return issuer;
+    public String getIssuerTi() {
+        return issuerTi;
     }
 
-    public void setIssuer(String issuer) {
-        this.issuer = issuer;
+    public void setIssuerTi(String issuerTi) {
+        this.issuerTi = issuerTi;
+    }
+
+    public String getIssuerInet() {
+        return issuerInet;
+    }
+
+    public void setIssuerInet(String issuerInet) {
+        this.issuerInet = issuerInet;
     }
 
     public String getPairingEndpoint() {
@@ -124,6 +140,22 @@ public class InfoModel {
 
     public void setFachdienste(List<Fachdienst> fachdienste) {
         this.fachdienste = fachdienste;
+    }
+
+    /**
+     * Returns the sektor idp list. If no sektor idps are configured, an empty list will be returned.
+     *
+     * @return the list of configured sektor idps
+     */
+    public List<SektorApp> getSektorApps() {
+        if (sektorApps == null) {
+            sektorApps = new ArrayList<>();
+        }
+        return sektorApps;
+    }
+
+    public void setSektorApps(List<SektorApp> sektorApps) {
+        this.sektorApps = sektorApps;
     }
 
 }

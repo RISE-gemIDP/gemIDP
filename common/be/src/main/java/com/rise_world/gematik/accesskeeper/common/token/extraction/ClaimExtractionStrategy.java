@@ -12,10 +12,4 @@ import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
  */
 public interface ClaimExtractionStrategy extends ExtractionStrategy<JwtClaims> {
 
-    /**
-     * Extracts and validates the claims of a provided token
-     * @param token where claims will be extracted and validated
-     * @return extracted claims
-     */
-    JwtClaims extractAndValidate(String token);
 }

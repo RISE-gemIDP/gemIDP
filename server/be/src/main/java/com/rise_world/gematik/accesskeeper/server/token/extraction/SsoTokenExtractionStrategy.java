@@ -22,20 +22,23 @@ import com.rise_world.gematik.accesskeeper.server.token.extraction.validation.Co
 import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
+import java.util.Map;
 
 @Component
 @Qualifier("ssoToken")
 public class SsoTokenExtractionStrategy extends AbstractClaimExtractionStrategy {
 
-    private static final String[] RELEVANT_CLAIMS = {ClaimUtils.CLIENT_ID, ClaimUtils.REDIRECT_URI, ClaimUtils.AUTH_TIME, ClaimUtils.CERTIFICATE};
+    private static final String[] RELEVANT_CLAIMS = {ClaimUtils.CLIENT_ID, ClaimUtils.REDIRECT_URI, ClaimUtils.AUTH_TIME};
 
     @Autowired
     // @AFO: A_20949 - Wirft eine Exception mit ErrorCode AUTH_INVALID_SSO_TOKEN wenn der SSO Token nicht verarbeitet werden kann
     // @AFO: A_20947 - Entschl&uuml;sselung des "SSO_TOKEN"
-    public SsoTokenExtractionStrategy(Clock clock, DecryptionProviderFactory provider, ConfigService configService, KeyProvider keyProvider) {
+    public SsoTokenExtractionStrategy(Clock clock, DecryptionProviderFactory provider, ConfigService configService, KeyProvider keyProvider,
+            @Value("${token.iat.leeway}") long iatLeeway) {
         super(
             // Entschluesselung via JweTokenParser
             new JweTokenParser(provider.createDecryptionProvider(TokenType.SSO),
@@ -44,13 +47,13 @@ public class SsoTokenExtractionStrategy extends AbstractClaimExtractionStrategy 
                 new AESValidation(ErrorCodes.AUTH_INVALID_SSO_TOKEN)),
             // @AFO: A_20948-01 - Die Signatur des SSO Tokens wird überprüft
             new ServerSignatureValidation(keyProvider, ErrorCodes.AUTH_INVALID_SSO_TOKEN),
-            new IssuedAtValidation(clock, ErrorCodes.AUTH_INVALID_SSO_TOKEN),
+            new IssuedAtValidation(clock, ErrorCodes.AUTH_INVALID_SSO_TOKEN, iatLeeway),
             new ContentValidation(configService, TokenType.SSO, RELEVANT_CLAIMS, ErrorCodes.AUTH_INVALID_SSO_TOKEN)
         );
     }
 
     @Override
-    protected JwtClaims extractInternal(IdpJwsJwtCompactConsumer tokenConsumer) {
+    protected JwtClaims extractInternal(IdpJwsJwtCompactConsumer tokenConsumer, Map<String, Object> context) {
         return tokenConsumer.getJwtClaims();
     }
 }

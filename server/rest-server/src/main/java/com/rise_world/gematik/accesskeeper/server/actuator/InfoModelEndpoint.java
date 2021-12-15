@@ -50,6 +50,7 @@ public class InfoModelEndpoint {
         config.put("invalid_client_ids", configService.getInvalidClientIds());
         config.put("invalid_fachdienst_ids", configService.getInvalidFachdienstIds());
         config.put("invalid_scope_ids", configService.getInvalidScopeIds());
+        config.put("invalid_sektor_app_ids", configService.getInvalidSektorAppIds());
         return config;
     }
 }

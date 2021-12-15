@@ -9,7 +9,7 @@ import com.rise_world.gematik.accesskeeper.common.exception.ErrorCodes;
 import com.rise_world.gematik.accesskeeper.common.exception.ErrorMessage;
 import com.rise_world.gematik.accesskeeper.common.exception.ErrorUtils;
 import com.rise_world.gematik.accesskeeper.common.exception.OAuth2Error;
-import com.rise_world.gematik.accesskeeper.server.api.util.UrlBuilder;
+import com.rise_world.gematik.accesskeeper.common.util.UrlBuilder;
 import com.rise_world.gematik.accesskeeper.common.util.LogTool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

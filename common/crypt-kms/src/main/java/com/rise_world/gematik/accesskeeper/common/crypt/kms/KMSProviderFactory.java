@@ -111,13 +111,19 @@ public class KMSProviderFactory implements EncryptionProviderFactory, Decryption
 
     @Override
     public ECPublicKey getKey(String kid) {
-        if (KeyConstants.PUK_IDP_ENC.equals(kid)) {
-            JwkEcPublicKey keyDefinition = certResource.getPublicKey();
+        final JwkEcPublicKey keyDefinition;
 
-            return createECKey(keyDefinition.getCrv(), keyDefinition.getX(), keyDefinition.getY());
+        if (KeyConstants.PUK_IDP_ENC.equals(kid)) {
+            keyDefinition = certResource.getPublicKey();
+        }
+        else if (KeyConstants.PUK_IDP_SIG_SEK.equals(kid)) {
+            keyDefinition = certResource.getIdpSekSigForJwk();
+        }
+        else {
+            throw new IllegalArgumentException(String.format("KeyIdentifier %s is invalid", kid));
         }
 
-        throw new IllegalArgumentException(String.format("KeyIdentifier %s is invalid", kid));
+        return createECKey(keyDefinition.getCrv(), keyDefinition.getX(), keyDefinition.getY());
     }
 
     private ECPublicKey createECKey(String curve, String encodedXPoint, String encodedYPoint) {
@@ -163,6 +169,8 @@ public class KMSProviderFactory implements EncryptionProviderFactory, Decryption
                 return KeyType.IDP;
             case DISC:
                 return KeyType.DISC;
+            case EXT_AUTH:
+                return KeyType.SEK;
             default:
                 throw new IllegalArgumentException();
         }
@@ -174,6 +182,8 @@ public class KMSProviderFactory implements EncryptionProviderFactory, Decryption
                 return KeyType.IDP;
             case KeyConstants.PUK_DISC_SIG:
                 return KeyType.DISC;
+            case KeyConstants.PUK_IDP_SIG_SEK:
+                return KeyType.SEK;
             default:
                 throw new IllegalArgumentException(String.format("KeyIdentifier %s is invalid", kid));
         }
