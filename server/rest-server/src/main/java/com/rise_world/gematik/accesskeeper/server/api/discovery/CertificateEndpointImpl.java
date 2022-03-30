@@ -55,6 +55,7 @@ public class CertificateEndpointImpl implements CertificateEndpoint {
         if (src.getPublicKeyUse() != null) {
             dst.setUse(src.getPublicKeyUse().toString());
         }
+        dst.setAlg(src.getAlgorithm());
         dst.setKty(src.getKeyType().toString());
         dst.setCrv(src.getStringProperty(EC_CURVE));
         dst.setX(src.getStringProperty(EC_X_COORDINATE));

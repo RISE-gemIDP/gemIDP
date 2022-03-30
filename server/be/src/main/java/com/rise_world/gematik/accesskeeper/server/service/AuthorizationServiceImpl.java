@@ -81,13 +81,13 @@ public class AuthorizationServiceImpl implements AuthorizationService {
 
     private static final int MAX_AMR_VALUES = 8;
 
-    // @AFO: A_20314 -  Konstante max. Challenge G&uuml;ltigkeit (180s)
+    // @AFO: A_20314-01 -  Konstante max. G&uuml;ltigkeit des Challenge-Tokens (180s)
     private static final long MAX_CHALLENGE_EXPIRATION = TimeUnit.MINUTES.toSeconds(3);
 
     // @AFO: A_20692-01 - Konstante max. SSO Token G&uuml;ltigkeit
     private static final long MAX_SSO_EXPIRATION = TimeUnit.HOURS.toSeconds(24L);
 
-    // @AFO: A_20314 - Konstante max. AUTH_CODE G&uuml;ltigkeit
+    // @AFO: A_20314-01 - Konstante max. AUTH_CODE G&uuml;ltigkeit (60s)
     private static final long MAX_AUTH_CODE_EXPIRATION = 60;
 
     private static final List<String> AMR_METHODS = Arrays.asList(OAuth2Constants.AMR_MULTI_FACTOR_AUTH, OAuth2Constants.AMR_SMART_CARD, OAuth2Constants.AMR_PIN);
@@ -205,7 +205,7 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         JwtClaims challengeClaims = new JwtClaims();
         challengeClaims.setIssuer(configService.getIssuer(RequestContext.getRequestSource()));
         challengeClaims.setIssuedAt(epochSecond);
-        challengeClaims.setExpiryTime(calculateChallengeExpiryTime(epochSecond)); // @AFO: A_20314 - G&uuml;ltigkeitsdauer der Challenge wird gesetzt
+        challengeClaims.setExpiryTime(calculateChallengeExpiryTime(epochSecond)); // @AFO: A_20314-01 - G&uuml;ltigkeitsdauer des Challenge-Tokens wird gesetzt
         challengeClaims.setClaim(ClaimUtils.TOKEN_TYPE, TokenType.CHALLENGE.getId());
         challengeClaims.setClaim(ClaimUtils.TOKEN_ID, RandomUtils.randomUUID());
 
@@ -490,7 +490,7 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         JwtClaims challengeClaims = signedChallengeExtractionStrategy.extractAndValidate(signedChallenge);
         LogTool.setSessionId(challengeClaims.getStringProperty(ClaimUtils.SESSION_ID));
 
-        // @AFO: A_20951 neben der Signatur auch das Authentifizierungszertifikat anhand von OCSP überprüfen
+        // @AFO: A_20951-01 neben der Signatur auch das Authentifizierungszertifikat anhand von OCSP überprüfen
         String autCertificate = challengeClaims.getStringProperty(ClaimUtils.CERTIFICATE);
 
         try {
@@ -627,7 +627,7 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         JwtClaims authCodeClaims = new JwtClaims();
         authCodeClaims.setIssuer(configService.getIssuer(RequestContext.getRequestSource()));
         authCodeClaims.setIssuedAt(now);
-        authCodeClaims.setExpiryTime(calculateAuthCodeExpiryTime(now));  // @AFO: A_20314 - G&uuml;ltigkeitsdauer des AUTH_CODEs wird gesetzt
+        authCodeClaims.setExpiryTime(calculateAuthCodeExpiryTime(now));  // @AFO: A_20314-01 - G&uuml;ltigkeitsdauer des AUTH_CODEs wird gesetzt
 
         authCodeClaims.setClaim(ClaimUtils.TOKEN_ID, RandomUtils.randomUUID());
         authCodeClaims.setClaim(ClaimUtils.AUTH_TIME, authTime);
@@ -698,6 +698,12 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         // @AFO: A_20440-01 redirect_uri aus CHALLENGE_TOKEN wird gegen registrierte URIs des Clients validiert
         validateClientAndRedirectUri(challengeClaims.getStringProperty(ClaimUtils.CLIENT_ID), challengeClaims.getStringProperty(ClaimUtils.REDIRECT_URI));
 
+        // @AFO: A_20946-01 Ueberpruefung ob dieser Client einen SSO_TOKEN einloesen darf
+        Client client = configService.getClientById(challengeClaims.getStringProperty(ClaimUtils.CLIENT_ID));
+        if (client == null || !client.isNeedsSsoToken()) {
+            throw new AccessKeeperException(ErrorCodes.AUTH_SSO_TOKEN_NOT_CONFIGURED);
+        }
+
         String fdScope = getFdScope(challengeClaims); // @AFO: A_20950-1 - Scope des Fachdiensts wird aus der Challenge extrahiert
 
         // @AFO: A_20947 - Entschlüsselung des "SSO_TOKEN"
@@ -712,7 +718,7 @@ public class AuthorizationServiceImpl implements AuthorizationService {
                 throw new AccessKeeperException(ErrorCodes.AUTH_INVALID_SSO_TOKEN);
             }
             try {
-                // @AFO: A_20951 neben der Signatur auch das Authentifizierungszertifikat anhand von OCSP überprüfen
+                // @AFO: A_20951-01 neben der Signatur auch das Authentifizierungszertifikat anhand von OCSP überprüfen
                 certificateServiceClient.validateClientCertificateAgainstOCSP(clock.instant(), autCertificate);
             }
             catch (CertificateServiceException e) {
@@ -805,7 +811,7 @@ public class AuthorizationServiceImpl implements AuthorizationService {
      * @param iat time token has been issued
      * @return expiry time calculated using configuration and iat
      */
-    // @AFO: A_20314 - Begrenzt die Gültigkeitsdauer des AUTH_CODEs auf 60 Sekunden
+    // @AFO: A_20314-01 - Begrenzt die Gültigkeitsdauer des AUTH_CODEs auf 60 Sekunden
     private long calculateAuthCodeExpiryTime(long iat) {
         Long timeout = configService.getTokenTimeout(TokenType.AUTH_CODE);
         if (timeout == null || timeout < 0 || timeout > MAX_AUTH_CODE_EXPIRATION) {
@@ -819,7 +825,7 @@ public class AuthorizationServiceImpl implements AuthorizationService {
      *
      * @param iat time challenge has been issued
      * @return expiry time calculated using configuration and iat
-     * @AFO: A_20314  - Begrenzt die G&uuml;ltigkeitsdauer der Challenge auf 180s
+     * @AFO: A_20314-01 - Begrenzt die G&uuml;ltigkeitsdauer des Challenge-Tokens auf 180s
      */
     private long calculateChallengeExpiryTime(long iat) {
         Long timeout = configService.getTokenTimeout(TokenType.CHALLENGE);

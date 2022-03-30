@@ -59,6 +59,9 @@ public class ErrorCodes {
     // @AFO: A_20949 - textueller Hinweis, dass neuerliche Authentisierung notwendig ist
     public static final ErrorMessage AUTH_REQUESTED_CLAIMS_NOT_CONSENTED = new ErrorMessage(2042, OAuth2Error.ACCESS_DENIED,
         "Nicht alle angeforderten Claims sind im UserConsent vorhanden, bitte um neuerliche Authentisierung");
+    // @AFO: A_20949 - textueller Hinweis, dass neuerliche Authentisierung notwendig ist
+    public static final ErrorMessage AUTH_SSO_TOKEN_NOT_CONFIGURED = new ErrorMessage(2043, OAuth2Error.ACCESS_DENIED,
+        "Der Client ist nicht berechtigt einen SSO_TOKEN einzul\u00f6sen, bitte um neuerliche Authentisierung");
 
     public static final ErrorMessage AUTH_ENCRYPTION = new ErrorMessage(2050, OAuth2Error.SERVER_ERROR, "Verschl\u00fcsselung nicht m\u00f6glich");
 

@@ -99,12 +99,11 @@ public class AuthorizationEndpointImpl implements AuthorizationEndpoint {
             .appendParameter(SSO_TOKEN, redeemedChallenge.getSsoToken())
             .appendState(redeemedChallenge.getState())
             .toString();
-        // @AFO: A_20693 - AUTH_CODE und SSO Token werden via Redirect an den Client gesendet
         return Response.status(Response.Status.FOUND).location(URI.create(redirectUri)).build();
     }
 
     @Override
-    // @AFO: A_20946 - SSO Token wird an der Schnittstelle angenommen
+    // @AFO: A_20946-01 - SSO Token wird an der Schnittstelle angenommen
     public Response finishAuthorizationWithSsoToken(String ssoToken,
                                                     String unsignedChallenge) {
         // @AFO: A_20434 - keine doppelten Parameter
@@ -118,7 +117,6 @@ public class AuthorizationEndpointImpl implements AuthorizationEndpoint {
             .appendState(redeemedSsoToken.getState())
             .toString();
 
-        // @AFO: A_20693 - AUTH_CODE wird via Redirect an den Client gesendet
         return Response.status(Response.Status.FOUND).location(URI.create(redirectUri)).build();
     }
 
@@ -135,7 +133,6 @@ public class AuthorizationEndpointImpl implements AuthorizationEndpoint {
             .appendParameter(SSO_TOKEN, redeemedChallenge.getSsoToken())
             .appendState(redeemedChallenge.getState())
             .toString();
-        // @AFO: A_20693 - AUTH_CODE und SSO Token werden via Redirect an den Client gesendet
         return Response.status(Response.Status.FOUND).location(URI.create(redirectUri)).build();
     }
 }

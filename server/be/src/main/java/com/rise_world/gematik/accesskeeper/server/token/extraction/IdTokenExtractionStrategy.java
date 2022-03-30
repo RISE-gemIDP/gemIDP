@@ -118,6 +118,14 @@ public class IdTokenExtractionStrategy extends AbstractClaimExtractionStrategy {
     }
 
     private void validateGematikClaims(JwtClaims idToken) {
+        // validate family_name, given_name and orgNumber are not null
+        if (idToken.getClaim(ClaimUtils.FAMILY_NAME) == null ||
+            idToken.getClaim(ClaimUtils.GIVEN_NAME) == null ||
+            idToken.getClaim(ClaimUtils.SEK_IDP_ORG_NUMBER) == null) {
+            LOG.warn("token does not contain all required claims");
+            throw new AccessKeeperException(ErrorCodes.EXTAUTH_INVALID_ID_TOKEN);
+        }
+
         if (StringUtils.length(idToken.getStringProperty(ClaimUtils.FAMILY_NAME)) > MAX_LENGTH_NAME) {
             LOG.warn("family_name is too long");
             throw new AccessKeeperException(ErrorCodes.EXTAUTH_INVALID_ID_TOKEN);
@@ -126,7 +134,7 @@ public class IdTokenExtractionStrategy extends AbstractClaimExtractionStrategy {
             LOG.warn("given_name is too long");
             throw new AccessKeeperException(ErrorCodes.EXTAUTH_INVALID_ID_TOKEN);
         }
-        if (StringUtils.length(idToken.getStringProperty("organization_number")) > MAX_LENGTH_NAME) {
+        if (StringUtils.length(idToken.getStringProperty(ClaimUtils.SEK_IDP_ORG_NUMBER)) > MAX_LENGTH_NAME) {
             LOG.warn("organization_number is too long");
             throw new AccessKeeperException(ErrorCodes.EXTAUTH_INVALID_ID_TOKEN);
         }

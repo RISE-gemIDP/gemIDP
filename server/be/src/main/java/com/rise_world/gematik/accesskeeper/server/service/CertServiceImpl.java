@@ -77,6 +77,9 @@ public class CertServiceImpl implements CertService {
 
     @Override
     public JsonWebKey getSekIdpSignatureKey() {
-        return getJwkFromPublicKey(KeyConstants.PUK_IDP_SIG_SEK, keyProvider.getKey(KeyConstants.PUK_IDP_SIG_SEK), PublicKeyUse.SIGN, this::createEs256AlgorithmProperties);
+        JsonWebKey jwk = getJwkFromPublicKey(KeyConstants.PUK_IDP_SIG_SEK,
+            keyProvider.getKey(KeyConstants.PUK_IDP_SIG_SEK), PublicKeyUse.SIGN, this::createEs256AlgorithmProperties);
+        jwk.setAlgorithm(AlgorithmUtils.ES_SHA_256_ALGO);
+        return jwk;
     }
 }

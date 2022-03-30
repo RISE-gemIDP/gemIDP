@@ -7,8 +7,10 @@ package com.rise_world.gematik.accesskeeper.common.token.extraction.validation;
 
 import com.rise_world.gematik.accesskeeper.common.exception.AccessKeeperException;
 import com.rise_world.gematik.accesskeeper.common.exception.ErrorMessage;
+import com.rise_world.gematik.accesskeeper.common.token.ClaimUtils;
 import com.rise_world.gematik.accesskeeper.common.token.extraction.parser.IdpJwsJwtCompactConsumer;
 import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
+import org.apache.cxf.rs.security.jose.jwt.JwtConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,7 +38,7 @@ public class IssuedAtValidation implements ClaimValidation<IdpJwsJwtCompactConsu
     @Override
     public void validate(IdpJwsJwtCompactConsumer token) {
         JwtClaims claims = token.getJwtClaims();
-        Long issuedAt = claims.getIssuedAt();
+        Long issuedAt = ClaimUtils.getLongPropertyWithoutException(claims, JwtConstants.CLAIM_ISSUED_AT);
         if (issuedAt == null) {
             LOG.warn("iat is missing");
             throw new AccessKeeperException(errorMessage);

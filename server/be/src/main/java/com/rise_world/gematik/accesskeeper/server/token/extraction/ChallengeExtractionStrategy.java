@@ -39,7 +39,7 @@ public class ChallengeExtractionStrategy extends AbstractClaimExtractionStrategy
         super(
             new PlainTokenParser(ErrorCodes.AUTH_INVALID_CHALLENGE),
             new ServerSignatureValidation(keyProvider, ErrorCodes.AUTH_MISSING_SERVER_SIGNATURE, ErrorCodes.AUTH_WRONG_SERVER_ALGO, ErrorCodes.AUTH_INVALID_SERVER_SIGNATURE),
-            // AFO: A_20314 - G&uuml;ltigkeit der Challenge wird validiert
+            // AFO: A_20314-01 - G&uuml;ltigkeit des Challenge-Tokens wird validiert
             new TokenExpiry(clock, ErrorCodes.AUTH_CHALLENGE_MISSING_EXPIRY, ErrorCodes.AUTH_CHALLENGE_EXPIRED),
             new IssuedAtValidation(clock, ErrorCodes.AUTH_INVALID_CHALLENGE, iatLeeway),
             new ContentValidation(configService, TokenType.CHALLENGE, RELEVANT_CLAIMS, ErrorCodes.AUTH_INVALID_CHALLENGE)

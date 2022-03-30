@@ -82,7 +82,7 @@ public class SignedChallengeExtractionStrategy extends AbstractClaimExtractionSt
 
         JwtClaims challenge = challengeExtractionStrategy.extractAndValidate(claims.getStringProperty(ClaimUtils.NESTED_TOKEN));
 
-        // @AFO: A_20951 - Das AUT-Zertifikat wird aus den Headern extrahiert
+        // @AFO: A_20951-01 - Das AUT-Zertifikat wird aus den Headern extrahiert
         final String autCert = headers.getX509Chain().get(0);
         X509Certificate x509Certificate = null;
         try {
@@ -97,7 +97,7 @@ public class SignedChallengeExtractionStrategy extends AbstractClaimExtractionSt
         return challenge;
     }
 
-    // @AFO: A_20951 - Public Key wird aus dem AUT-Zertifikat extrahiert und die Signatur der Challenge damit &uuml;berpr&uuml;ft
+    // @AFO: A_20951-01 - Public Key wird aus dem AUT-Zertifikat extrahiert und die Signatur des Challenge-Tokens damit &uuml;berpr&uuml;ft
     // @AFO: GS-A_4357 - RSA und ECDSA Client-Signaturen werden anhand der Algorithmen aus Tab_KRYPT_002 und Tab_KRYPT_002a gepr&uuml;ft.
     // @AFO: A_17207 Prüfung des alg-Headers und Signatur
     private void validateClientSignature(JwsJwtCompactConsumer challengeToken, X509Certificate x509Certificate) {
