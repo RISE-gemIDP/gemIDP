@@ -61,14 +61,15 @@ public class Fachdienst {
     }
 
     @Override
-    public boolean equals(Object obj) {
-        if (this == obj) {
+    public boolean equals(Object o) {
+        if (this == o) {
             return true;
         }
-        if (!(obj instanceof Fachdienst)) {
+        if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        Fachdienst other = (Fachdienst) obj;
-        return Objects.equals(id, other.id);
+
+        Fachdienst that = (Fachdienst) o;
+        return Objects.equals(id, that.id);
     }
 }

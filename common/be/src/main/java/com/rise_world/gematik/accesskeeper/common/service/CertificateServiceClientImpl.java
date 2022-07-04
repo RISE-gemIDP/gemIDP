@@ -72,6 +72,7 @@ public class CertificateServiceClientImpl implements CertificateServiceClient {
 
         request.setIntendedKeyUsage(1); // digital signature
         request.setIntendedExtendedKeyUsage(Collections.singletonList("1.3.6.1.5.5.7.3.2")); //  id-kp-clientAuth
+        request.setAllowMissingExtendedKeyUsage(true);
 
         request.setPolicyList(POLICY_LIST);
         request.setCheckType(CheckType.OCSP);

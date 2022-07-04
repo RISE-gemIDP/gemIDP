@@ -37,11 +37,7 @@ public class CxfTracingHeaderInterceptor extends AbstractOutDatabindingIntercept
     @Override
     public void handleMessage(Message message) {
         @SuppressWarnings("unchecked")
-        Map<String, List<String>> headers = (Map<String, List<String>>) message.get(Message.PROTOCOL_HEADERS);
-        if (headers == null) {
-            headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-            message.put(Message.PROTOCOL_HEADERS, headers);
-        }
+        Map<String, List<String>> headers = (Map<String, List<String>>) message.computeIfAbsent(Message.PROTOCOL_HEADERS, k -> new TreeMap<>(String.CASE_INSENSITIVE_ORDER));
 
         // modify headers
         headers.put(this.traceId, Collections.singletonList(MDC.get(LogTool.MDC_TRACE_ID)));

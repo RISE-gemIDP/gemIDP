@@ -435,6 +435,9 @@ public class AuthorizationServiceImpl implements AuthorizationService {
             LOG.warn("state is invalid");
             throw new AccessKeeperException(ErrorCodes.EXTAUTH_INVALID_STATE);
         }
+        if (kkAppRedirectUri.length() > MAX_LENGTH_REDIRECT_URI) {
+            throw new AccessKeeperException(ErrorCodes.EXTAUTH_INVALID_KKA_REDIRECT_URI);
+        }
         try {
             new URI(kkAppRedirectUri);
         }

@@ -55,6 +55,7 @@ public class PairingHealthIndicator extends AbstractHealthIndicator implements I
         builder.withDetail("validationQuery", validationQuery);
         builder.withDetail("expectedResult", expectedValue);
 
+        @SuppressWarnings("findsecbugs:SQL_INJECTION_SPRING_JDBC") // query is statically configured
         List<Object> results = this.jdbcTemplate.query(validationQuery, (rs, rowNum) -> {
             ResultSetMetaData metaData = rs.getMetaData();
             int columns = metaData.getColumnCount();

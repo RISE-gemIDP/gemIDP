@@ -24,6 +24,7 @@ import javax.ws.rs.ext.Provider;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 
 @Provider
@@ -31,8 +32,6 @@ import java.time.Clock;
 public class AuthorizationExceptionMapper implements ExceptionMapper<AuthorizationException> {
 
     private static final Logger LOG = LoggerFactory.getLogger(AuthorizationExceptionMapper.class);
-
-    private static final String CHARSET = "UTF-8";
 
     private Clock clock;
 
@@ -72,7 +71,7 @@ public class AuthorizationExceptionMapper implements ExceptionMapper<Authorizati
             redirectUri.appendParameter("gematik_uuid", requestId);
         }
         try {
-            String encodedErrorMsg = URLEncoder.encode(errorMessage.getText(), CHARSET);
+            String encodedErrorMsg = URLEncoder.encode(errorMessage.getText(), StandardCharsets.UTF_8.name());
             redirectUri.appendParameter("gematik_error_text", encodedErrorMsg);
         }
         catch (UnsupportedEncodingException ex) {

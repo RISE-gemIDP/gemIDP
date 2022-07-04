@@ -29,8 +29,19 @@ public class IdpJwsHeaders extends JwsHeaders {
     }
 
     @Override
-    public boolean equals(Object obj) {
-        return obj instanceof IdpJwsHeaders && ((IdpJwsHeaders) obj).algorithm == algorithm && super.equals(obj);
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+
+        IdpJwsHeaders that = (IdpJwsHeaders) o;
+        return algorithm == that.algorithm;
     }
 
     @Override

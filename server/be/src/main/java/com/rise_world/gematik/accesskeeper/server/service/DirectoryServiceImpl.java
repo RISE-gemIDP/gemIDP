@@ -47,6 +47,7 @@ public class DirectoryServiceImpl implements DirectoryService {
     private Duration reloadInterval;
     private Duration expirationInterval;
 
+    @SuppressWarnings("java:S3749") // map is synchronized to handle concurrent access
     private Map<String, RemoteIdpDTO> directoryCache = new ConcurrentHashMap<>();
 
     @Autowired

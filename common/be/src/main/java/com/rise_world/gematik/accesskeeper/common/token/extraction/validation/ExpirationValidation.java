@@ -24,7 +24,7 @@ public abstract class ExpirationValidation<T> implements ClaimValidation<T> {
     private ErrorMessage missingClaim;
     private ErrorMessage expiredClaim;
 
-    public ExpirationValidation(Clock clock, ErrorMessage failOnMissing, ErrorMessage failOnExpiry) {
+    protected ExpirationValidation(Clock clock, ErrorMessage failOnMissing, ErrorMessage failOnExpiry) {
         this.missingClaim = failOnMissing;
         this.expiredClaim = failOnExpiry;
         this.clock = clock;

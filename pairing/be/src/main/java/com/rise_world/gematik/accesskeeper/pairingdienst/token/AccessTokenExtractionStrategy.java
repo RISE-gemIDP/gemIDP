@@ -74,6 +74,7 @@ public class AccessTokenExtractionStrategy extends AbstractClaimExtractionStrate
     }
 
     @Override
+    @SuppressWarnings("java:S1185") // the compiler requires an implementation of this method
     public JwtClaims extractAndValidate(String token) {
         return super.extractAndValidate(token);
     }

@@ -35,8 +35,14 @@ public class WebConfiguration {
     @Primary
     // TaskSchedulingAutoConfiguration enabled via @EnableScheduling produces an instance of ThreadPoolTaskScheduler which implements TaskExecutor
     // Therefore we have to define this bean as primary TaskExecutor
-    public TaskExecutor getAsyncExecutor() {
+    public TaskExecutor getAsyncExecutor(@Value("${asyncExecutor.corePoolSize:1}") int corePoolSize,
+                                         @Value("${asyncExecutor.maxPoolSize:2147483647}") int maxPoolSize,
+                                         @Value("${asyncExecutor.queueCapacity:20}") int queueCapacity) {
         ThreadPoolTaskExecutor poolExecutor = new ThreadPoolTaskExecutor();
+        poolExecutor.setCorePoolSize(corePoolSize);
+        poolExecutor.setMaxPoolSize(maxPoolSize);
+        poolExecutor.setQueueCapacity(queueCapacity);
+
         poolExecutor.setTaskDecorator(new ContextCopyingDecorator());
         poolExecutor.initialize();
         return poolExecutor;

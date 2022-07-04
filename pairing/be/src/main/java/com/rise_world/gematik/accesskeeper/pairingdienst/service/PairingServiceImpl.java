@@ -100,6 +100,7 @@ public class PairingServiceImpl implements PairingService {
     private final Clock clock;
     private final ObjectMapper objectMapper;
 
+    @SuppressWarnings("java:S3749") // class is stateless
     private final EpkValidation epkValidation = new EpkValidation(ErrorCodes.REG1_CLIENT_ERROR);
 
     @Autowired

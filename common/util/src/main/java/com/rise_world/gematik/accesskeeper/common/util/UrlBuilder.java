@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 public class UrlBuilder {
 
@@ -76,16 +77,21 @@ public class UrlBuilder {
     }
 
     /**
-     * Appends a parameter and encodes its value using URL encoding
+     * Appends a parameter and encodes its value using URL encoding.
+     * In case of a {@code null} value, no parameter will be added to the URI.
      *
      * @param name  the parameter name
      * @param value the parameter value (will be encoded)
      * @return this instance
      */
     public UrlBuilder appendUriParameter(String name, String value) {
+        if (value == null) {
+            return this;
+        }
+
         String encodedValue;
         try {
-            encodedValue = URLEncoder.encode(value, "UTF-8");
+            encodedValue = URLEncoder.encode(value, StandardCharsets.UTF_8.name());
         }
         catch (UnsupportedEncodingException e) {
             LOG.error("Failed to convert uri", e);

@@ -36,6 +36,7 @@ public class KeyVerifierExtractionStrategy implements ExtractionStrategy<KeyVeri
     private static final Logger LOG = LoggerFactory.getLogger(KeyVerifierExtractionStrategy.class);
 
     private DecryptionProviderFactory decryptionFactory;
+    @SuppressWarnings("java:S3749") // class is stateless
     private EpkValidation headerValidation = new EpkValidation(ErrorCodes.TOKEN_INVALID_KEY_VERIFIER);
     private ObjectMapper mapper;
 

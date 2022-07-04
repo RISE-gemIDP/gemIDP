@@ -318,7 +318,7 @@ public class TokenServiceImpl implements TokenService {
     }
 
     private Object createHash(String accessToken) {
-        byte[] hash = DigestUtils.sha256(accessToken.getBytes());
+        byte[] hash = DigestUtils.sha256(accessToken.getBytes(StandardCharsets.UTF_8));
 
         return Base64.getUrlEncoder().withoutPadding().encodeToString(Arrays.copyOf(hash, 16));
     }

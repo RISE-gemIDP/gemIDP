@@ -26,13 +26,14 @@ import org.springframework.util.CollectionUtils;
 import javax.annotation.PostConstruct;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -54,7 +55,7 @@ public class ConfigServiceImpl implements ConfigService {
 
     // init() creates and populates the cache. afterwards there are only reads - no writes
     // therefore it's safe to mark a non-primitive field as volatile
-    @SuppressWarnings("squid:S3077")
+    @SuppressWarnings({"squid:S3077", "java:S3749"})
     private volatile ConfigCache cache;
 
     public ConfigServiceImpl(@Value("${model.configuration}") String configLocation) {
@@ -67,14 +68,14 @@ public class ConfigServiceImpl implements ConfigService {
     @PostConstruct
     @Override
     public synchronized void reload()  {
-        File configFile = new File(configLocation);
-        LOG.info("Loading configuration from {}", configFile.getAbsolutePath());
+        Path configFile = Paths.get(configLocation).toAbsolutePath();
+        LOG.info("Loading configuration from {}", configFile);
         InputStream is;
         try {
-            is = new FileInputStream(configLocation);
+            is = Files.newInputStream(configFile);
         }
-        catch (FileNotFoundException e) {
-            throw new ConfigException(String.format("Configuration file '%s' not found", configFile.getAbsolutePath()));
+        catch (IOException e) {
+            throw new ConfigException(String.format("Configuration file '%s' not found", configFile), e);
         }
 
         ObjectMapper objectMapper = new ObjectMapper();

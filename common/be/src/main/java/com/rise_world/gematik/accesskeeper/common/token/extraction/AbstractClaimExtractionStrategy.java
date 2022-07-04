@@ -21,7 +21,7 @@ public abstract class AbstractClaimExtractionStrategy implements ClaimExtraction
     private List<ClaimValidation<IdpJwsJwtCompactConsumer>> validationList = new ArrayList<>();
 
     @SafeVarargs
-    public AbstractClaimExtractionStrategy(TokenParser tokenParser, ClaimValidation<IdpJwsJwtCompactConsumer>... validation) {
+    protected AbstractClaimExtractionStrategy(TokenParser tokenParser, ClaimValidation<IdpJwsJwtCompactConsumer>... validation) {
         this.tokenParser = tokenParser;
         this.validationList.addAll(Arrays.asList(validation));
     }

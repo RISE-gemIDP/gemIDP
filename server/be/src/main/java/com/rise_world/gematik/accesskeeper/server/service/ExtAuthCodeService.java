@@ -77,6 +77,7 @@ public class ExtAuthCodeService {
     }
 
     // @AFO: A_22265 - Token Request an den sektoralen Identity Provider
+    @SuppressWarnings("java:S2139") // log additional configuration information before throwing exceptions
     public String redeemAuthCode(RemoteIdpDTO remoteIdpDTO, String authCode, String redirectUri, String codeVerifier) {
         ExtTokenEndpoint tokenEndpoint = createClient(remoteIdpDTO.getTokenEndpoint());
         CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker(remoteIdpDTO.getTokenEndpoint());
@@ -136,7 +137,7 @@ public class ExtAuthCodeService {
 
         Client restClient = WebClient.client(tokenEndpoint);
         ClientConfiguration config = WebClient.getConfig(restClient);
-        config.getResponseContext().put("buffer.proxy.response", true); // GEMIDP-1244 prevent connection leaks
+        config.getResponseContext().put("buffer.proxy.response", Boolean.TRUE); // GEMIDP-1244 prevent connection leaks
 
         HTTPConduit conduit = config.getHttpConduit();
         HTTPClientPolicy httpClientPolicy = conduit.getClient();

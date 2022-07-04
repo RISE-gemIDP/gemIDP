@@ -43,7 +43,7 @@ public class PairingDienstClientConfiguration {
         Client restClient = WebClient.client(endpoint);
         ClientConfiguration config = WebClient.getConfig(restClient);
         // GEMIDP-1244 prevent connection leaks
-        config.getResponseContext().put("buffer.proxy.response", true);
+        config.getResponseContext().put("buffer.proxy.response", Boolean.TRUE);
 
         HTTPConduit conduit = config.getHttpConduit();
         HTTPClientPolicy httpClientPolicy = conduit.getClient();

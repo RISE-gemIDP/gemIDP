@@ -249,7 +249,7 @@ public class CertificateReaderServiceImpl implements CertificateReaderService {
         }
         catch (Exception e) {
             LOG.warn("failed to parse policy extension");
-            throw new CertReaderException("Failed to parse policy information");
+            throw new CertReaderException("Failed to parse policy information", e);
         }
 
         Set<String> policyIds = new HashSet<>();

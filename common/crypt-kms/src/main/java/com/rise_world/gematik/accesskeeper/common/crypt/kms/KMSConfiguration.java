@@ -76,7 +76,7 @@ public class KMSConfiguration {
     private void updateClientConfig(Object resource) {
         ClientConfiguration config = WebClient.getConfig(resource);
         // GEMIDP-1244 prevent connection leaks
-        config.getResponseContext().put("buffer.proxy.response", true);
+        config.getResponseContext().put("buffer.proxy.response", Boolean.TRUE);
 
         HTTPClientPolicy policy = config.getHttpConduit().getClient();
         policy.setReceiveTimeout(receiveTimeout);

@@ -8,6 +8,7 @@ package com.rise_world.gematik.accesskeeper.server.util;
 import com.rise_world.gematik.accesskeeper.common.util.DigestUtils;
 import org.apache.commons.lang3.RandomStringUtils;
 
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Base64;
 
@@ -49,7 +50,7 @@ public class PkceUtils {
     }
 
     public static String createCodeChallenge(String codeVerifier) {
-        byte[] hashBytes = DigestUtils.sha256(codeVerifier.getBytes());
+        byte[] hashBytes = DigestUtils.sha256(codeVerifier.getBytes(StandardCharsets.US_ASCII));
         // base64 url encoding without padding as defined in RFC7636 Appendix A
         return Base64.getUrlEncoder().withoutPadding().encodeToString(hashBytes);
     }
