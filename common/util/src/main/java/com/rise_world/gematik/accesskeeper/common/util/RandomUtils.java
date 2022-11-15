@@ -22,7 +22,7 @@ public class RandomUtils {
     /**
      * Creates a random Java UUID
      * @return the random UUID
-     * @AFO: GS-A_4367 - zuf&auml;llige UUID wird generiert (zB f&uuml;r JWTs)
+     * @AFO GS-A_4367 - zuf&auml;llige UUID wird generiert (zB f&uuml;r JWTs)
      */
     public static String randomUUID() {
         return UUID.randomUUID().toString();

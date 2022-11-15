@@ -23,7 +23,7 @@ import static com.rise_world.gematik.accesskeeper.server.api.util.ParameterUtils
 /**
  * Token Endpoint Implementierung
  *
- * @AFO: A_20686 - Erweiterte Nutzung von Schlüsseln
+ * @AFO A_20686 - Erweiterte Nutzung von Schlüsseln
  */
 @RestController
 public class TokenEndpointImpl implements TokenEndpoint {
@@ -41,8 +41,8 @@ public class TokenEndpointImpl implements TokenEndpoint {
 
     /**
      * Redeem tokens
-     * @AFO: A_20323 - TOKEN-Ausgabe Protokollierung in allen Fällen (gemProdT_IDP-Dienst)
-     * @AFO: A_20321 - Annahme des Authorization Code und des Key_verifier
+     * @AFO A_20323 - TOKEN-Ausgabe Protokollierung in allen Fällen (gemProdT_IDP-Dienst)
+     * @AFO A_20321 - Annahme des Authorization Code und des Key_verifier
      */
     @Override
     public Response redeem(String authCode, String keyVerifier, String clientId, String grantType, String redirectUri) {

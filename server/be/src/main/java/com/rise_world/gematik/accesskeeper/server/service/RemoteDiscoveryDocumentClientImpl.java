@@ -128,7 +128,7 @@ public class RemoteDiscoveryDocumentClientImpl implements RemoteDiscoveryDocumen
             }
         }
         catch (Exception e) {
-            LOG.warn("Failed to parse JsonWebKey [type={}], [kid={}]", jwk.getKeyType(), jwk.getKeyId());
+            LOG.warn("Failed to parse JsonWebKey [type={}], [kid={}]", jwk.getProperty(JsonWebKey.KEY_TYPE), jwk.getKeyId());
         }
 
         return null;

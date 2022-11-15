@@ -38,7 +38,7 @@ public class TokenCreationStrategyProducer {
      * Creates a TokenCreationStrategy for the Challenge
      *
      * @return a suitable TokenCreationStrategy
-     * @AFO: A_20521-02 - Signieren der Challenge mit passendem Schlüsselmaterial
+     * @AFO A_20521-02 - Signieren der Challenge mit passendem Schlüsselmaterial
      */
     @Bean
     @Qualifier("challengeStrategy")
@@ -50,8 +50,8 @@ public class TokenCreationStrategyProducer {
      * Creates a TokenCreationStrategy for the SSO Token
      *
      * @return a suitable TokenCreationStrategy
-     * @AFO: A_20696 - Verschlüsselung des "SSO_TOKEN"
-     * @AFO: A_20695-01 - Signieren des "SSO_TOKEN"
+     * @AFO A_20696 - Verschlüsselung des "SSO_TOKEN"
+     * @AFO A_20695-01 - Signieren des "SSO_TOKEN"
      */
     @Bean
     @Qualifier("ssoTokenStrategy")
@@ -65,7 +65,7 @@ public class TokenCreationStrategyProducer {
      * Creates a AesTokenCreationStrategy for Access Token
      *
      * @return a suitable AesTokenCreationStrategy
-     * @AFO: A_20327-02 - Signatur des "ACCESS_TOKEN"
+     * @AFO A_20327-02 - Signatur des "ACCESS_TOKEN"
      */
     @Bean
     @Qualifier("accessTokenStrategyFactory")
@@ -77,7 +77,7 @@ public class TokenCreationStrategyProducer {
      * Creates a AesTokenCreationStrategy for ID Token
      *
      * @return a suitable AesTokenCreationStrategy
-     * @AFO: A_20327-02 - Signatur des "ID_TOKEN"
+     * @AFO A_20327-02 - Signatur des "ID_TOKEN"
      */
     @Bean
     @Qualifier("idTokenStrategyFactory")
@@ -89,10 +89,10 @@ public class TokenCreationStrategyProducer {
      * Creates a TokenCreationStrategy for Authorization Code
      *
      * @return a suitable TokenCreationStrategy
-     * @AFO: A_20521-01 - Inhalt der Challenge an das Authenticator-Modul
-     * @AFO: A_20695 - Signieren des "SSO_TOKEN"
-     * @AFO: A_20319 - Signatur des "AUTHORIZATION_CODE"
-     * @AFO: A_21317 - Verschlüsselung des "AUTHORIZATION CODE"
+     * @AFO A_20521-01 - Inhalt der Challenge an das Authenticator-Modul
+     * @AFO A_20695 - Signieren des "SSO_TOKEN"
+     * @AFO A_20319 - Signatur des "AUTHORIZATION_CODE"
+     * @AFO A_21317 - Verschlüsselung des "AUTHORIZATION CODE"
      */
     @Bean
     @Qualifier("authCodeStrategy")
@@ -107,10 +107,10 @@ public class TokenCreationStrategyProducer {
      *
      * @param keyProvider provider to retrieve puk_disc_sig
      * @return a suitable TokenCreationStrategy
-     * @AFO: A_20691-01 - Die SignStrategy f&uuml;r das Discovery Document wird mit disc_sig initialisiert.
-     * @AFO: A_20591-01 - Die SignStrategy f&uuml;r das Discovery Document wird mit disc_sig initialisiert.
-     * @AFO: A_20591-01 - Das Laden des Zertifikats im Zertifikats-Supplier wird an den KeyProvider delegiert
-     * @AFO: A_20687-01 - puk_disc_sig wird mittels KeyProvider geladen
+     * @AFO A_20691-01 - Die SignStrategy f&uuml;r das Discovery Document wird mit disc_sig initialisiert.
+     * @AFO A_20591-01 - Die SignStrategy f&uuml;r das Discovery Document wird mit disc_sig initialisiert.
+     * @AFO A_20591-01 - Das Laden des Zertifikats im Zertifikats-Supplier wird an den KeyProvider delegiert
+     * @AFO A_20687-01 - puk_disc_sig wird mittels KeyProvider geladen
      */
     @Bean
     @Qualifier("discStrategy")

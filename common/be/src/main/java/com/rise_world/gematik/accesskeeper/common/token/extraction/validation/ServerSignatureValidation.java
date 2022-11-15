@@ -48,9 +48,9 @@ public class ServerSignatureValidation implements ClaimValidation<IdpJwsJwtCompa
      *
      * @param consumer the signed token
      *
-     * @AFO: GS-A_4357 - ECDSA Server-Signatur wird anhand der Algorithmen aus Tab_KRYPT_002a gepr&uuml;ft.
-     * @AFO: A_20948-01 - Die Signatur der vom IDP ausgestellten Token wird anhand von puk_idp_sig gepr&uuml;ft
-     * @AFO: A_17207 Prüfung des alg-Headers und Signatur
+     * @AFO GS-A_4357 - ECDSA Server-Signatur wird anhand der Algorithmen aus Tab_KRYPT_002a gepr&uuml;ft.
+     * @AFO A_20948-01 - Die Signatur der vom IDP ausgestellten Token wird anhand von puk_idp_sig gepr&uuml;ft
+     * @AFO A_17207 Prüfung des alg-Headers und Signatur
      */
     public void validate(IdpJwsJwtCompactConsumer consumer) {
 

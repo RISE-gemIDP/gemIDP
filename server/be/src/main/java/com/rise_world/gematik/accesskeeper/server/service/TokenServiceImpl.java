@@ -213,9 +213,9 @@ public class TokenServiceImpl implements TokenService {
      * @param key        encryption key
      * @param fachdienst relevant Fachdienst
      * @return string representation of an Access Token
-     * @AFO: A_20464 - Token-Endpunkt (Datensparsamkeit)
-     * @AFO: A_20459 - Das Attribut AUTH_TIME muss in allen Token unverändert bleiben
-     * @AFO: A_20524-02 - Befüllen der Claims "given_name", "family_name", "organizationName", "professionOID"
+     * @AFO A_20464 - Token-Endpunkt (Datensparsamkeit)
+     * @AFO A_20459 - Das Attribut AUTH_TIME muss in allen Token unverändert bleiben
+     * @AFO A_20524-02 - Befüllen der Claims "given_name", "family_name", "organizationName", "professionOID"
      *       und "idNummer"
      */
     protected String createAccessToken(JwtClaims authCode, SecretKey key, Fachdienst fachdienst) {
@@ -252,9 +252,9 @@ public class TokenServiceImpl implements TokenService {
      * @param key            encryption key
      * @param fachdienst     relevant Fachdienst
      * @return string representation of an ID Token
-     * @AFO: A_20459 - Das Attribut AUTH_TIME muss in allen Token unverändert bleiben
-     * @AFO: A_20464 - Token-Endpunkt (Datensparsamkeit)
-     * @AFO: A_20524-02  - Befüllen der Claims "given_name", "family_name", "organizationName", "professionOID"
+     * @AFO A_20459 - Das Attribut AUTH_TIME muss in allen Token unverändert bleiben
+     * @AFO A_20464 - Token-Endpunkt (Datensparsamkeit)
+     * @AFO A_20524-02  - Befüllen der Claims "given_name", "family_name", "organizationName", "professionOID"
      *       und "idNummer"
      */
     protected String createIDToken(JwtClaims authCodeClaims, String accessToken, SecretKey key, Fachdienst fachdienst) {
@@ -291,8 +291,8 @@ public class TokenServiceImpl implements TokenService {
      * @param iat           issuer date
      * @return the calculated expiry date
      *
-     * @AFO: A_20313-01 - Inhalte des Claims (gemProdT_IDP-Dienst)
-     * @AFO: A_20463 - Maximale Gültigkeitsdauer des "ACCESS_TOKEN" (gemProdT_IDP-Dienst)
+     * @AFO A_20313-01 - Inhalte des Claims (gemProdT_IDP-Dienst)
+     * @AFO A_20463 - Maximale Gültigkeitsdauer des "ACCESS_TOKEN" (gemProdT_IDP-Dienst)
      */
     private long calculateAccessTokenExpiryTime(Fachdienst fachdienst, long iat) {
         return iat + getExpiryTime(fachdienst::getTokenTimeout, MAX_AT_EXPIRATION);
@@ -329,8 +329,8 @@ public class TokenServiceImpl implements TokenService {
      *
      * @param iat time token has been issued
      * @return expiry time calculated using configuration and iat
-     * @AFO: A_20313-01 - Inhalte des Claims
-     * @AFO: A_20462 - Maximale Gültigkeitsdauer des "ID_TOKEN"
+     * @AFO A_20313-01 - Inhalte des Claims
+     * @AFO A_20462 - Maximale Gültigkeitsdauer des "ID_TOKEN"
      */
     private long calculateIdTokenExpiryTime(Client client, long iat) {
         return iat + getExpiryTime(client::getTokenTimeout, MAX_ID_EXPIRATION);

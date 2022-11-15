@@ -792,8 +792,8 @@ public class AuthorizationServiceImpl implements AuthorizationService {
      * @param scope the requested scope
      * @param authTime   timestamp of the last authentication using an approved mechanism (e.g. smartcard)
      * @return expiry time calculated using configuration and iat
-     * @AFO: A_20313-01 - Berechnet die G&uuml;ltigkeitsdauer des SSO-Tokens
-     * @AFO: A_20692-01 - Begrenzt die G&uuml;ltigkeitsdauer des SSO-Tokens auf 24h
+     * @AFO A_20313-01 - Berechnet die G&uuml;ltigkeitsdauer des SSO-Tokens
+     * @AFO A_20692-01 - Begrenzt die G&uuml;ltigkeitsdauer des SSO-Tokens auf 24h
      */
     private long calculateSSOExpiryTime(String scope, long authTime) {
         Fachdienst fachdienst = configService.getFachdienstByScope(scope);
@@ -828,7 +828,7 @@ public class AuthorizationServiceImpl implements AuthorizationService {
      *
      * @param iat time challenge has been issued
      * @return expiry time calculated using configuration and iat
-     * @AFO: A_20314-01 - Begrenzt die G&uuml;ltigkeitsdauer des Challenge-Tokens auf 180s
+     * @AFO A_20314-01 - Begrenzt die G&uuml;ltigkeitsdauer des Challenge-Tokens auf 180s
      */
     private long calculateChallengeExpiryTime(long iat) {
         Long timeout = configService.getTokenTimeout(TokenType.CHALLENGE);

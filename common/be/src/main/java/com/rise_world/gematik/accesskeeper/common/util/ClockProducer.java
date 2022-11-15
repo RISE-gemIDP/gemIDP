@@ -7,7 +7,6 @@ package com.rise_world.gematik.accesskeeper.common.util;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.context.annotation.RequestScope;
 
 import java.time.Clock;
 
@@ -20,7 +19,6 @@ public class ClockProducer {
      * @return the produced instance
      */
     @Bean
-    @RequestScope
     public Clock produceClock() {
         return Clock.systemUTC();
     }
