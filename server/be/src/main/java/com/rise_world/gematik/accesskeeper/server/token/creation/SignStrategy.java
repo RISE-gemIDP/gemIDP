@@ -7,6 +7,7 @@ package com.rise_world.gematik.accesskeeper.server.token.creation;
 
 import com.rise_world.gematik.accesskeeper.common.crypt.CryptoConstants;
 import com.rise_world.gematik.accesskeeper.common.token.creation.IdpJwsHeaders;
+import com.rise_world.gematik.accesskeeper.common.token.creation.TokenCreationStrategy;
 import com.rise_world.gematik.accesskeeper.common.util.JwtJsonUtils;
 import org.apache.cxf.rs.security.jose.common.JoseConstants;
 import org.apache.cxf.rs.security.jose.common.JoseType;

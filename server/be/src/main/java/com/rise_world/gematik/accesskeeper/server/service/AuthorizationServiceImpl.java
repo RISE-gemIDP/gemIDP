@@ -31,7 +31,7 @@ import com.rise_world.gematik.accesskeeper.server.entity.ExtSessionEntity;
 import com.rise_world.gematik.accesskeeper.server.model.Client;
 import com.rise_world.gematik.accesskeeper.server.model.Fachdienst;
 import com.rise_world.gematik.accesskeeper.server.model.Scope;
-import com.rise_world.gematik.accesskeeper.server.token.creation.TokenCreationStrategy;
+import com.rise_world.gematik.accesskeeper.common.token.creation.TokenCreationStrategy;
 import com.rise_world.gematik.accesskeeper.server.token.extraction.AuthenticationDataExtractionStrategy;
 import com.rise_world.gematik.accesskeeper.server.token.extraction.IdTokenExtractionStrategy;
 import com.rise_world.gematik.accesskeeper.server.util.LoopbackUtils;
@@ -72,8 +72,8 @@ public class AuthorizationServiceImpl implements AuthorizationService {
 
     private static final Logger LOG = LoggerFactory.getLogger(AuthorizationServiceImpl.class);
 
-    private static final int MAX_LENGTH_STATE = 32;
-    private static final int MAX_LENGTH_NONCE = 32;
+    private static final int MAX_LENGTH_STATE = 512;
+    private static final int MAX_LENGTH_NONCE = 512;
     private static final int MAX_LENGTH_CODE_CHALLENGE = 43;
     private static final int MAX_LENGTH_REDIRECT_URI = 2000;
     private static final int MAX_LENGTH_AUTH_CODE_SEK = 2000;

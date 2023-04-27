@@ -119,6 +119,9 @@ public class KMSProviderFactory implements EncryptionProviderFactory, Decryption
         else if (KeyConstants.PUK_IDP_SIG_SEK.equals(kid)) {
             keyDefinition = certResource.getIdpSekSigForJwk();
         }
+        else if (KeyConstants.PUK_FEDMASTER_SIG.equals(kid)) {
+            keyDefinition = certResource.getIdpFedSigForJwk();
+        }
         else {
             throw new IllegalArgumentException(String.format("KeyIdentifier %s is invalid", kid));
         }
@@ -171,6 +174,8 @@ public class KMSProviderFactory implements EncryptionProviderFactory, Decryption
                 return KeyType.DISC;
             case EXT_AUTH:
                 return KeyType.SEK;
+            case FEDMASTER:
+                return KeyType.FED;
             default:
                 throw new IllegalArgumentException();
         }

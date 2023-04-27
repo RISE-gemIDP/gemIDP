@@ -14,6 +14,7 @@ import com.rise_world.gematik.accesskeeper.common.exception.AccessKeeperExceptio
 import com.rise_world.gematik.accesskeeper.common.exception.ErrorCodes;
 import com.rise_world.gematik.accesskeeper.common.util.LoggingInvocationHandler;
 import com.rise_world.gematik.accesskeeper.common.util.RandomUtils;
+import com.rise_world.gematik.accesskeeper.common.util.TlsUtils;
 import com.rise_world.gematik.accesskeeper.server.dto.RemoteIdpDTO;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
@@ -32,7 +33,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.DependsOn;
 import org.springframework.stereotype.Service;
 
 import javax.ws.rs.ProcessingException;
@@ -47,8 +47,9 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.Map;
 
+import static com.rise_world.gematik.accesskeeper.server.configuration.IdpConstants.USER_AGENT;
+
 @Service
-@DependsOn("BCProviderInit")
 public class ExtAuthCodeService {
 
     private static final Logger LOG = LoggerFactory.getLogger(ExtAuthCodeService.class);
@@ -140,7 +141,9 @@ public class ExtAuthCodeService {
         config.getResponseContext().put("buffer.proxy.response", Boolean.TRUE); // GEMIDP-1244 prevent connection leaks
 
         HTTPConduit conduit = config.getHttpConduit();
+        conduit.setTlsClientParameters(TlsUtils.createTLSClientParameters());
         HTTPClientPolicy httpClientPolicy = conduit.getClient();
+        httpClientPolicy.setBrowserType(USER_AGENT);
         httpClientPolicy.setConnectionTimeout(sektorIdpConnectionTimeout);
         httpClientPolicy.setReceiveTimeout(sektorIdpReceiveTimeout);
 

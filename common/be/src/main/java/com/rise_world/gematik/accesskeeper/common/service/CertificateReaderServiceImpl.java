@@ -12,6 +12,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1Primitive;
+import org.bouncycastle.asn1.ASN1String;
 import org.bouncycastle.asn1.isismtt.ISISMTTObjectIdentifiers;
 import org.bouncycastle.asn1.isismtt.x509.AdmissionSyntax;
 import org.bouncycastle.asn1.isismtt.x509.Admissions;
@@ -217,7 +218,11 @@ public class CertificateReaderServiceImpl implements CertificateReaderService {
         if (encodable == null) {
             return null;
         }
+        else if (encodable instanceof ASN1String s) {
+            return s.getString();
+        }
         else {
+            LOG.warn("unexpected asn1 value type: {}", encodable.getClass().getName());
             return IETFUtils.valueToString(encodable);
         }
     }

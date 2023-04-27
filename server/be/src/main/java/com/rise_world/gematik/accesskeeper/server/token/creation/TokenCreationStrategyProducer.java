@@ -11,6 +11,7 @@ import com.rise_world.gematik.accesskeeper.common.crypt.KeyProvider;
 import com.rise_world.gematik.accesskeeper.common.crypt.SignatureProviderFactory;
 import com.rise_world.gematik.accesskeeper.common.dto.Endpoint;
 import com.rise_world.gematik.accesskeeper.common.dto.TokenType;
+import com.rise_world.gematik.accesskeeper.common.token.creation.TokenCreationStrategy;
 import org.apache.cxf.rs.security.jose.common.JoseConstants;
 import org.apache.cxf.rs.security.jose.common.JoseType;
 import org.springframework.beans.factory.annotation.Autowired;

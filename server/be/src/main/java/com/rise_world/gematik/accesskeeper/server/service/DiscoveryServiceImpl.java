@@ -8,7 +8,7 @@ package com.rise_world.gematik.accesskeeper.server.service;
 import com.rise_world.gematik.accesskeeper.common.OAuth2Constants;
 import com.rise_world.gematik.accesskeeper.common.crypt.CryptoConstants;
 import com.rise_world.gematik.accesskeeper.server.dto.RequestSource;
-import com.rise_world.gematik.accesskeeper.server.token.creation.TokenCreationStrategy;
+import com.rise_world.gematik.accesskeeper.common.token.creation.TokenCreationStrategy;
 import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;

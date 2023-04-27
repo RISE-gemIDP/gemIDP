@@ -5,6 +5,7 @@
  */
 package com.rise_world.gematik.accesskeeper.server;
 
+import com.rise_world.gematik.accesskeeper.common.util.BCProviderInit;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
@@ -27,6 +28,7 @@ public class Application extends SpringBootServletInitializer {
     //Justification: stream is closed on shutdown via the shutdown hook.
     @SuppressWarnings("squid:S2095")
     public static void main(String[] args) {
+        BCProviderInit.init();
         ConfigurableApplicationContext context = SpringApplication.run(Application.class);
         context.registerShutdownHook();
     }

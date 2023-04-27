@@ -9,7 +9,7 @@ import com.rise_world.gematik.accesskeeper.common.exception.AccessKeeperExceptio
 import com.rise_world.gematik.accesskeeper.common.exception.ErrorCodes;
 import com.rise_world.gematik.accesskeeper.server.dto.RemoteIdpDTO;
 import com.rise_world.gematik.accesskeeper.server.model.SektorApp;
-import com.rise_world.gematik.accesskeeper.server.token.creation.TokenCreationStrategy;
+import com.rise_world.gematik.accesskeeper.common.token.creation.TokenCreationStrategy;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
 import org.slf4j.Logger;

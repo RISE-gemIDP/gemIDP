@@ -30,6 +30,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.rise_world.gematik.accesskeeper.server.configuration.IdpConstants.USER_AGENT;
+
 @Component
 public class RemoteDiscoveryDocumentClientImpl implements RemoteDiscoveryDocumentClient {
 
@@ -104,6 +106,7 @@ public class RemoteDiscoveryDocumentClientImpl implements RemoteDiscoveryDocumen
     private void setConnectionTimeouts(WebClient client) {
         ClientConfiguration configuration = client.getConfiguration();
         HTTPClientPolicy clientPolicy = configuration.getHttpConduit().getClient();
+        clientPolicy.setBrowserType(USER_AGENT);
         clientPolicy.setConnectionTimeout(connectionTimeout);
         clientPolicy.setReceiveTimeout(receiveTimeout);
     }

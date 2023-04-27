@@ -11,6 +11,6 @@ public class OidType {
     public static final String OID_C_HCI_AUTH = "1.2.276.0.76.4.77";
 
     private OidType() {
-        // private constructor for sonarqube
+        // avoid instantiation
     }
 }
