@@ -15,10 +15,13 @@ public class BCProviderInit {
     private static final String[] SUPPORTED_CURVES = {
         "brainpoolP256r1",
         "brainpoolP384r1",
-        "brainpoolP512r1",
         "secp256r1",
         "secp384r1"
     };
+
+    private BCProviderInit() {
+        // avoid instantiation
+    }
 
     public static void init() {
         Security.insertProviderAt(new BouncyCastleJsseProvider(), 1);

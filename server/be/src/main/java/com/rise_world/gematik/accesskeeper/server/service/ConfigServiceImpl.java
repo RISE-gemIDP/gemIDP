@@ -45,7 +45,7 @@ import java.util.TreeSet;
 import java.util.regex.Pattern;
 
 @Service
-@SuppressWarnings({"fb-contrib:FCBL_FIELD_COULD_BE_LOCAL", "fb-contrib:DMC_DUBIOUS_MAP_COLLECTION"})
+@SuppressWarnings("fb-contrib:FCBL_FIELD_COULD_BE_LOCAL")
 public class ConfigServiceImpl implements ConfigService {
 
     private static final Logger LOG = LoggerFactory.getLogger(ConfigServiceImpl.class);
@@ -522,6 +522,7 @@ public class ConfigServiceImpl implements ConfigService {
         return scopes;
     }
 
+    @SuppressWarnings("fb-contrib:DMC_DUBIOUS_MAP_COLLECTION")
     private static class ConfigCache {
         private final InfoModel parsedInfoModel;
         private final InfoModel effectiveInfoModel;

@@ -33,6 +33,7 @@ public class KMSSignatureProvider implements JwsSignatureProvider {
 
     @Override
     public SignatureAlgorithm getAlgorithm() {
+        // @AFO: A_23034 ES256 wird verwendet
         return SignatureAlgorithm.ES256;
     }
 

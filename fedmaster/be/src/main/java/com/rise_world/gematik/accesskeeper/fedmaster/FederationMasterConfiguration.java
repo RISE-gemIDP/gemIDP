@@ -19,7 +19,7 @@ import com.rise_world.gematik.accesskeeper.common.util.LogTool;
 import com.rise_world.gematik.accesskeeper.fedmaster.dto.SynchronizationDto;
 import com.rise_world.gematik.accesskeeper.fedmaster.exception.SchedulingException;
 import com.rise_world.gematik.accesskeeper.fedmaster.service.EntityStatementSynchronization;
-import com.rise_world.gematik.accesskeeper.fedmaster.service.SynchronizationConfiguration;
+import com.rise_world.gematik.accesskeeper.common.service.SynchronizationConfiguration;
 import com.rise_world.gematik.accesskeeper.fedmaster.util.SynchronizationLog;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Qualifier;

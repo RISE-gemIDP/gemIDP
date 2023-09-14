@@ -127,6 +127,7 @@ public class CertificateReaderServiceImpl implements CertificateReaderService {
         // add empty claims
         cardClaims.put(ClaimUtils.FAMILY_NAME, null);
         cardClaims.put(ClaimUtils.GIVEN_NAME, null);
+        cardClaims.put(ClaimUtils.DISPLAY_NAME, null);
         cardClaims.put(ClaimUtils.ORG_NAME, null);
 
         addNameClaims(cardClaims, certificate, cardType);
@@ -211,6 +212,10 @@ public class CertificateReaderServiceImpl implements CertificateReaderService {
                     cardClaims.put(ClaimUtils.ORG_NAME, value);
                 }
             }
+        }
+
+        if (cardClaims.get(ClaimUtils.GIVEN_NAME) != null && cardClaims.get(ClaimUtils.FAMILY_NAME) != null) {
+            cardClaims.put(ClaimUtils.DISPLAY_NAME, cardClaims.get(ClaimUtils.GIVEN_NAME) + " " + cardClaims.get(ClaimUtils.FAMILY_NAME));
         }
     }
 

@@ -30,20 +30,29 @@ public class ClaimUtils {
     public static final Pattern KVNR_PATTERN = Pattern.compile("[A-Z][0-9]{9}");
     public static final int MAX_LENGTH_NAME = 64;
     public static final int MAX_LENGTH_TELEMATIK_ID = 128;
+    public static final int MAX_LENGTH_DISPLAY_NAME = 1000;
 
     public static final String TOKEN_ID = "jti";
     public static final String SESSION_ID = "snc";
     public static final String AUTH_TIME = "auth_time";
     public static final String SCOPE = "scope";
     public static final String CLIENT_ID = "client_id";
+    public static final String REQUEST_URI = "request_uri";
     public static final String CERTIFICATE = "x5c";
 
     public static final String GIVEN_NAME = "given_name";
     public static final String FAMILY_NAME = "family_name";
+    public static final String DISPLAY_NAME = "display_name";
     public static final String ORG_NAME = "organizationName";
     public static final String PROFESSION = "professionOID";
     public static final String ID_NUMBER = "idNummer";
     public static final String SEK_IDP_ORG_NUMBER = "organization_number";
+
+    public static final String URN_PROFESSION = "urn:telematik:claims:profession";
+    public static final String URN_DISPLAY_NAME = "urn:telematik:claims:display_name";
+    public static final String URN_GIVEN_NAME = "urn:telematik:claims:given_name";
+    public static final String URN_ID = "urn:telematik:claims:id";
+    public static final String URN_ORGANIZATION = "urn:telematik:claims:organization";
 
     public static final String AUTH_PARTY = "azp";
     public static final String AUTH_CTX = "acr";
@@ -68,12 +77,14 @@ public class ClaimUtils {
     public static final String HEADER_EPK = "epk";
 
     public static final String NESTED_TOKEN_CTY_VALUE = "NJWT";
+    public static final String JWT_CTY_VALUE = "JWT";
     public static final String PROFESSION_OID_VERSICHERTER = "1.2.276.0.76.4.49";
 
-    public static final List<String> CARD_CLAIMS = Collections.unmodifiableList(Arrays.asList(GIVEN_NAME, FAMILY_NAME, ORG_NAME, PROFESSION, ID_NUMBER));
+    public static final List<String> CARD_CLAIMS = Collections.unmodifiableList(Arrays.asList(GIVEN_NAME, FAMILY_NAME, ORG_NAME, PROFESSION, ID_NUMBER, DISPLAY_NAME));
 
     public static final String SSO_GRANT_TYPE_CERT = "cert";
     public static final String SSO_GRANT_TYPE_EXTTOKEN = "exttoken";
+    public static final String SSO_GRANT_TYPE_FEDTOKEN = "fedtoken";
     public static final Set<String> SSO_GRANT_TYPES = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(SSO_GRANT_TYPE_CERT, SSO_GRANT_TYPE_EXTTOKEN)));
 
     private static final Logger LOG = LoggerFactory.getLogger(ClaimUtils.class);

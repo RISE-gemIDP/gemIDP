@@ -18,6 +18,10 @@ public class TlsUtils {
         "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
     };
 
+    private TlsUtils() {
+        // avoid instantiation
+    }
+
     public static TLSClientParameters createTLSClientParameters() {
         TLSClientParameters tlsClientParameters = new TLSClientParameters();
         tlsClientParameters.setSecureSocketProtocol("TLSv1.2");

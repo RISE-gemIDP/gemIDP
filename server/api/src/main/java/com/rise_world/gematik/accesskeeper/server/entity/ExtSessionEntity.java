@@ -12,6 +12,7 @@ public class ExtSessionEntity {
     private Timestamp creationTime;
     private String state;
     private String kkAppId;
+    private String idpIss;
     private String clientId;
     private String clientRedirectUri;
     private String clientCodeChallenge;
@@ -43,6 +44,14 @@ public class ExtSessionEntity {
 
     public void setKkAppId(String kkAppId) {
         this.kkAppId = kkAppId;
+    }
+
+    public String getIdpIss() {
+        return idpIss;
+    }
+
+    public void setIdpIss(String idpIss) {
+        this.idpIss = idpIss;
     }
 
     public String getClientId() {

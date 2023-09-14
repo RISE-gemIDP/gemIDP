@@ -8,6 +8,7 @@ package com.rise_world.gematik.accesskeeper.server.token.extraction;
 import com.fasterxml.jackson.core.Base64Variants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
+import com.rise_world.gematik.accesskeeper.common.crypt.CryptoConstants;
 import com.rise_world.gematik.accesskeeper.common.crypt.DecryptionProviderFactory;
 import com.rise_world.gematik.accesskeeper.common.dto.TokenType;
 import com.rise_world.gematik.accesskeeper.common.exception.AccessKeeperException;
@@ -37,7 +38,7 @@ public class KeyVerifierExtractionStrategy implements ExtractionStrategy<KeyVeri
 
     private DecryptionProviderFactory decryptionFactory;
     @SuppressWarnings("java:S3749") // class is stateless
-    private EpkValidation headerValidation = new EpkValidation(ErrorCodes.TOKEN_INVALID_KEY_VERIFIER);
+    private EpkValidation headerValidation = new EpkValidation(CryptoConstants.JWE_BRAINPOOL_CURVE, ErrorCodes.TOKEN_INVALID_KEY_VERIFIER);
     private ObjectMapper mapper;
 
     @Autowired

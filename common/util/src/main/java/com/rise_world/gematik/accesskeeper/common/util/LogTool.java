@@ -17,6 +17,9 @@ public class LogTool {
 
     public static final String MDC_REQ_ID = "rqId";
     public static final String MDC_SESSION_ID = "session";
+    public static final String MDC_IDP_ISS = "idp_iss";
+    public static final String MDC_TOKEN_ENDPOINT = "token_endpoint";
+    public static final String MDC_PAR_ENDPOINT = "par_endpoint";
     public static final String MDC_TRACE_ID = "traceId";
     public static final String MDC_SPAN_ID = "spanId";
     public static final String MDC_PARENT_SPAN_ID = "parentSpanId";
@@ -82,6 +85,33 @@ public class LogTool {
      */
     public static void setSessionId(String sessionId) {
         MDC.put(MDC_SESSION_ID, sessionId);
+    }
+
+    /**
+     * Writes the issuer of a remote idp to the MDC
+     *
+     * @param idpIss the issuer
+     */
+    public static void setIdpIss(String idpIss) {
+        MDC.put(MDC_IDP_ISS, idpIss);
+    }
+
+    /**
+     * Writes the URI of the remote token endpoint to the MDC
+     *
+     * @param tokenEndpoint the token endpoint URI
+     */
+    public static void setTokenEndpoint(String tokenEndpoint) {
+        MDC.put(MDC_TOKEN_ENDPOINT, tokenEndpoint);
+    }
+
+    /**
+     * Writes the URI of the remote pushed auth endpoint to the MDC
+     *
+     * @param parEndpoint the PAR endpoint URI
+     */
+    public static void setPAREndpoint(String parEndpoint) {
+        MDC.put(MDC_PAR_ENDPOINT, parEndpoint);
     }
 
     /**

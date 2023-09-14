@@ -7,11 +7,11 @@ package com.rise_world.gematik.accesskeeper.fedmaster.service;
 
 import com.rise_world.gematik.accesskeeper.common.crypt.KeyProvider;
 import com.rise_world.gematik.accesskeeper.common.exception.AccessKeeperException;
+import com.rise_world.gematik.accesskeeper.common.exception.ConfigurationException;
 import com.rise_world.gematik.accesskeeper.common.exception.ErrorMessage;
 import com.rise_world.gematik.accesskeeper.fedmaster.FederationMasterConfiguration;
 import com.rise_world.gematik.accesskeeper.fedmaster.dto.ParticipantDto;
 import com.rise_world.gematik.accesskeeper.fedmaster.dto.ParticipantKeyDto;
-import com.rise_world.gematik.accesskeeper.fedmaster.exception.ConfigurationException;
 import com.rise_world.gematik.accesskeeper.fedmaster.repository.ParticipantRepository;
 import com.rise_world.gematik.accesskeeper.fedmaster.repository.PublicKeyRepository;
 import com.rise_world.gematik.accesskeeper.fedmaster.token.EntityStatementCreationStrategy;
@@ -171,6 +171,7 @@ public class EntityStatementServiceImpl implements EntityStatementService {
             idpClaims.setClaim("organization_name", idp.getOrganizationName());
             idpClaims.setClaim("logo_uri", idp.getLogoUri());
             idpClaims.setClaim("user_type_supported", idp.getUserTypeSupported());
+            idpClaims.setClaim("pkv", idp.isPkv());
             sekIdpList.add(idpClaims);
         }
         claims.setClaim("idp_entity", sekIdpList);

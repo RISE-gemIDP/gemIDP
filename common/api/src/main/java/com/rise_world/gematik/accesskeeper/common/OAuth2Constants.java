@@ -15,8 +15,12 @@ public class OAuth2Constants {
     // PKCE constants
     public static final String PKCE_METHOD_S256 = "S256";
 
+    // client assertions
+    public static final String CLIENT_ASSERTION_SELFSIGNED = "urn:ietf:params:oauth:client-assertion-type:self_signed_tls_client_auth";
+
     // acr level of assurance
     public static final String ACR_LOA_HIGH = "gematik-ehealth-loa-high";
+    public static final String ACR_LOA_SUBSTENTIAL = "gematik-ehealth-loa-substantial";
 
     public static final String EXTERNAL_CLIENT_ID = "zentraler-idp-dienst";
 

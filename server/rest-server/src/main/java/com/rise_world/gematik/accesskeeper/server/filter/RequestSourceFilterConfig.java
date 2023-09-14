@@ -17,7 +17,7 @@ public class RequestSourceFilterConfig {
         FilterRegistrationBean<RequestSourceFilter> registrationBean = new FilterRegistrationBean<>();
 
         registrationBean.setFilter(new RequestSourceFilter());
-        registrationBean.addUrlPatterns("/auth/*", "/token", "/.well-known/openid-configuration", "/extauth");
+        registrationBean.addUrlPatterns("/auth/*", "/token", "/.well-known/openid-configuration", "/extauth", "/fedauth");
         registrationBean.setOrder(2);
 
         return registrationBean;

@@ -5,7 +5,6 @@
  */
 package com.rise_world.gematik.accesskeeper.common.token.extraction.validation;
 
-import com.rise_world.gematik.accesskeeper.common.crypt.CryptoConstants;
 import com.rise_world.gematik.accesskeeper.common.exception.AccessKeeperException;
 import com.rise_world.gematik.accesskeeper.common.exception.ErrorMessage;
 import com.rise_world.gematik.accesskeeper.common.token.ClaimUtils;
@@ -25,10 +24,13 @@ public class EpkValidation implements ClaimValidation<JweHeaders> {
 
     private static final int COORDINATE_MAX_LENGTH = 44;
     private static final Logger LOG = LoggerFactory.getLogger(EpkValidation.class);
-    private ErrorMessage errorMessage;
 
-    public EpkValidation(ErrorMessage errorMessage) {
+    private final String jweCurve;
+    private final ErrorMessage errorMessage;
+
+    public EpkValidation(String jweCurve, ErrorMessage errorMessage) {
         this.errorMessage = errorMessage;
+        this.jweCurve = jweCurve;
     }
 
     @Override
@@ -61,7 +63,7 @@ public class EpkValidation implements ClaimValidation<JweHeaders> {
         }
 
         if (!Objects.equals(JsonWebKey.KEY_TYPE_ELLIPTIC, epk.getProperty(JsonWebKey.KEY_TYPE)) ||
-            !CryptoConstants.JWE_BRAINPOOL_CURVE.equals(epk.getProperty(JsonWebKey.EC_CURVE)) ||
+            !jweCurve.equals(epk.getProperty(JsonWebKey.EC_CURVE)) ||
             !epk.containsProperty(JsonWebKey.EC_X_COORDINATE) ||
             !epk.containsProperty(JsonWebKey.EC_Y_COORDINATE) ||
             !isBase64WithMaxLength(epk.getStringProperty(JsonWebKey.EC_X_COORDINATE), COORDINATE_MAX_LENGTH) ||

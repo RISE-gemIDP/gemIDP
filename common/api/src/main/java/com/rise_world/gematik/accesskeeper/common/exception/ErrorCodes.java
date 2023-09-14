@@ -118,7 +118,29 @@ public class ErrorCodes {
     public static final ErrorMessage EXTAUTH_FAILED_TO_REDEEM = new ErrorMessage(5020, OAuth2Error.INVALID_GRANT, "Id-Token konnte nicht abgerufen werden");
     public static final ErrorMessage EXTAUTH_INVALID_ID_TOKEN = new ErrorMessage(5021, OAuth2Error.INVALID_GRANT, "Id-Token ist ung\u00fcltig");
 
-    // discovery endpoint error 6xxx
+    // federation errors 7xxx
+
+    public static final ErrorMessage FED_INVALID_MASTER_SIGNATURE = new ErrorMessage(7000, OAuth2Error.SERVER_ERROR,
+        "Signatur des Federation Master Tokens ist ung\u00fcltig", 500);
+    public static final ErrorMessage FED_MASTER_NOT_AVAILABLE = new ErrorMessage(7001, OAuth2Error.SERVER_ERROR, "Federation Master ist nicht erreichbar", 500);
+    public static final ErrorMessage FED_TOKEN_INVALID = new ErrorMessage(7002, OAuth2Error.SERVER_ERROR, "Antwort des Federation Masters ist ung\u00fcltig", 500);
+
+    public static final ErrorMessage FEDAUTH_IDP_NOT_REGISTERED = new ErrorMessage(7010, OAuth2Error.INVALID_REQUEST, "zentraler IdP nicht am sektoralen IdP registriert");
+    public static final ErrorMessage FEDAUTH_PAR_FAILED = new ErrorMessage(7011, OAuth2Error.INVALID_REQUEST, "pushed authorization request zum sektoralen IdP fehlgeschlagen");
+    public static final ErrorMessage FEDAUTH_MISSING_IDP_ISS = new ErrorMessage(7012, OAuth2Error.INVALID_REQUEST, "idp_iss wurde nicht \u00fcbermittelt");
+    public static final ErrorMessage FEDAUTH_INVALID_IDP_ISS = new ErrorMessage(7013, OAuth2Error.INVALID_REQUEST, "idp_iss ist ung\u00fcltig");
+    public static final ErrorMessage FEDAUTH_MISSING_IDP_ES = new ErrorMessage(7014, OAuth2Error.INVALID_REQUEST, "kein Entity Statement f\u00fcr idp_iss vorhanden");
+    public static final ErrorMessage FEDAUTH_IDP_NOT_AVAILABLE = new ErrorMessage(7015, OAuth2Error.INVALID_REQUEST, "sektoraler IDP ist nicht erreichbar");
+
+    public static final ErrorMessage FEDAUTH_MISSING_CODE = new ErrorMessage(7021, OAuth2Error.INVALID_REQUEST, "code wurde nicht \u00fcbermittelt");
+    public static final ErrorMessage FEDAUTH_INVALID_CODE = new ErrorMessage(7022, OAuth2Error.INVALID_REQUEST, "code ist ung\u00fcltig");
+    public static final ErrorMessage FEDAUTH_MISSING_STATE = new ErrorMessage(7023, OAuth2Error.INVALID_REQUEST, "state wurde nicht \u00fcbermittelt");
+    public static final ErrorMessage FEDAUTH_INVALID_STATE = new ErrorMessage(7024, OAuth2Error.INVALID_REQUEST, "state ist ung\u00fcltig");
+    public static final ErrorMessage FEDAUTH_UNKNOWN_SESSION = new ErrorMessage(7025, OAuth2Error.ACCESS_DENIED, "Session ist ung\u00fcltig");
+    public static final ErrorMessage FEDAUTH_MISSING_SIG_KEY = new ErrorMessage(7027, OAuth2Error.INVALID_GRANT,
+        "Schl\u00fcssel f\u00fcr Signaturpr\u00fcfung des ID_Token nicht vorhanden");
+    public static final ErrorMessage FEDAUTH_INVALID_ID_TOKEN = new ErrorMessage(7028, OAuth2Error.INVALID_GRANT, "Id-Token ist ung\u00fcltig");
+    public static final ErrorMessage FEDAUTH_FAILED_TO_REDEEM = new ErrorMessage(7029, OAuth2Error.INVALID_GRANT, "Id-Token konnte nicht abgerufen werden");
 
     private ErrorCodes() {
         // avoid instantiation

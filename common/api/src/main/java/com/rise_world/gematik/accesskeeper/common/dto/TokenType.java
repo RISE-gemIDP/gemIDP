@@ -14,7 +14,8 @@ public enum TokenType {
     ACCESS("access_token", false, true), // @AFO: A_21445 AccessToken wird mit ECDH_ES_DIRECT entschl&uuml;sselt
     KEY_VERIFIER("key_verifier", false, true),
     REGISTRATION_INFO("registration_info", false, true),
-    ALTERNATIVE_AUTH_DATA("alternative_auth_data", false, true)
+    ALTERNATIVE_AUTH_DATA("alternative_auth_data", false, true),
+    SEKTORAL_ID_TOKEN("sektoral_id_token", false, true),
     ;
 
     private final String id;

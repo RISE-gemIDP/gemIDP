@@ -6,6 +6,7 @@
 package com.rise_world.gematik.accesskeeper.server.service;
 
 import com.rise_world.gematik.accesskeeper.server.dto.ChallengeDTO;
+import com.rise_world.gematik.accesskeeper.server.dto.OpenidProviderDTO;
 import com.rise_world.gematik.accesskeeper.server.dto.RedeemedChallengeDTO;
 import com.rise_world.gematik.accesskeeper.server.dto.RedeemedSsoTokenDTO;
 import com.rise_world.gematik.accesskeeper.common.exception.AccessKeeperException;
@@ -75,4 +76,30 @@ public interface AuthorizationService {
      * @return the created tokens
      */
     RedeemedSsoTokenDTO redeemSsoToken(String ssoToken, String unsignedChallenge);
+
+    /**
+     * Starts a new federated authentication
+     *
+     * @param idpIss                 the issuer value of a registered {@link OpenidProviderDTO}
+     * @param responseType           the Oauth2 response type
+     * @param clientId               the id of a registered {@link com.rise_world.gematik.accesskeeper.server.model.Client}
+     * @param appState               the app state parameter
+     * @param redirectUri            a valid (registered) redirect uri
+     * @param scope                  the requested scope
+     * @param appCodeChallenge       the app code challenge
+     * @param appCodeChallengeMethod the app code challenge method (must be 'S256')
+     * @param appNonce               the app nonce (optional)
+     * @return authorization request url for sector application
+     */
+    String startFederatedAuthorization(String idpIss, String responseType, String clientId, String appState, String redirectUri, String scope,
+                                       String appCodeChallenge, String appCodeChallengeMethod, String appNonce);
+
+    /**
+     * Redeems the authorization code issued by the federation IDP
+     *
+     * @param authorizationCode the authorization code issued by the federation IDP
+     * @param state             the state parameter
+     * @return the redeemed tokens
+     */
+    RedeemedChallengeDTO redeemFedAuthCode(String authorizationCode, String state);
 }

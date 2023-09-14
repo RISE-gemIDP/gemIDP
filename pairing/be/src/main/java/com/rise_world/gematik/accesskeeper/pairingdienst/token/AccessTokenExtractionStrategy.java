@@ -6,6 +6,7 @@
 package com.rise_world.gematik.accesskeeper.pairingdienst.token;
 
 import com.rise_world.gematik.accesskeeper.common.OAuth2Constants;
+import com.rise_world.gematik.accesskeeper.common.crypt.CryptoConstants;
 import com.rise_world.gematik.accesskeeper.common.crypt.DecryptionProviderFactory;
 import com.rise_world.gematik.accesskeeper.common.crypt.KeyProvider;
 import com.rise_world.gematik.accesskeeper.common.dto.TokenType;
@@ -64,7 +65,7 @@ public class AccessTokenExtractionStrategy extends AbstractClaimExtractionStrate
                 // @AFO: A_20372 Access Token wird auf gültiges EXP Feld geprüft
                 // @AFO: A_21411 Fehlerfall: ungültiger EXP
                 new HeaderExpiry(clock, REG1_CLIENT_ERROR, REG1_CLIENT_ERROR),
-                new EpkValidation(REG1_CLIENT_ERROR)), // @AFO: A_21411 Fehlerfall: ungültiger EPK Header
+                new EpkValidation(CryptoConstants.JWE_BRAINPOOL_CURVE, REG1_CLIENT_ERROR)), // @AFO: A_21411 Fehlerfall: ungültiger EPK Header
             // @AFO: A_20372 Access Token wird auf gültiges IAT Feld geprüft
             // @AFO: A_21411 Fehlerfall: ungültiger IAT
             new IssuedAtValidation(clock, REG1_CLIENT_ERROR, iatLeeway), // @AFO: A_21411 Fehlerfall: ungültiger IAT

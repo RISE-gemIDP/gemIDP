@@ -38,6 +38,7 @@ public class ParticipantRepositoryImpl extends JdbcRepository implements Partici
     protected static final String COL_MONITORED_AT = "last_monitored_at";
     protected static final String COL_LAST_RUN = "last_scheduled_run";
     protected static final String COL_ZIS_GROUP = "zis_assignment_group";
+    protected static final String COL_PKV = "pkv";
 
     protected static final String SELECT_ACTIVE = "SELECT subject from participant WHERE active=:active";
     protected static final String SELECT_BY_ID = "SELECT * FROM participant WHERE id=:id AND active=:active";
@@ -196,6 +197,7 @@ public class ParticipantRepositoryImpl extends JdbcRepository implements Partici
             entity.setLastScheduledRun(rs.getTimestamp(COL_LAST_RUN));
             entity.setLastMonitoredAt(rs.getTimestamp(COL_MONITORED_AT));
             entity.setZisGroup(rs.getString(COL_ZIS_GROUP));
+            entity.setPkv(rs.getBoolean(COL_PKV));
 
             return entity;
         }

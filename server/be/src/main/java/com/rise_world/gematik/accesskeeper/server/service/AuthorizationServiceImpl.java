@@ -17,22 +17,25 @@ import com.rise_world.gematik.accesskeeper.common.exception.ErrorCodes;
 import com.rise_world.gematik.accesskeeper.common.service.CertificateReaderService;
 import com.rise_world.gematik.accesskeeper.common.service.CertificateServiceClient;
 import com.rise_world.gematik.accesskeeper.common.token.ClaimUtils;
+import com.rise_world.gematik.accesskeeper.common.token.creation.TokenCreationStrategy;
 import com.rise_world.gematik.accesskeeper.common.token.extraction.ClaimExtractionStrategy;
 import com.rise_world.gematik.accesskeeper.common.token.extraction.parser.IdpJwsJwtCompactConsumer;
 import com.rise_world.gematik.accesskeeper.common.util.LogTool;
 import com.rise_world.gematik.accesskeeper.common.util.RandomUtils;
 import com.rise_world.gematik.accesskeeper.common.util.UrlBuilder;
 import com.rise_world.gematik.accesskeeper.server.dto.ChallengeDTO;
+import com.rise_world.gematik.accesskeeper.server.dto.EntityStatementDTO;
 import com.rise_world.gematik.accesskeeper.server.dto.RedeemedChallengeDTO;
 import com.rise_world.gematik.accesskeeper.server.dto.RedeemedSsoTokenDTO;
 import com.rise_world.gematik.accesskeeper.server.dto.RemoteIdpDTO;
+import com.rise_world.gematik.accesskeeper.server.dto.RequestSource;
 import com.rise_world.gematik.accesskeeper.server.dto.UserConsentDTO;
 import com.rise_world.gematik.accesskeeper.server.entity.ExtSessionEntity;
 import com.rise_world.gematik.accesskeeper.server.model.Client;
 import com.rise_world.gematik.accesskeeper.server.model.Fachdienst;
 import com.rise_world.gematik.accesskeeper.server.model.Scope;
-import com.rise_world.gematik.accesskeeper.common.token.creation.TokenCreationStrategy;
 import com.rise_world.gematik.accesskeeper.server.token.extraction.AuthenticationDataExtractionStrategy;
+import com.rise_world.gematik.accesskeeper.server.token.extraction.FederationIdTokenExtractionStrategy;
 import com.rise_world.gematik.accesskeeper.server.token.extraction.IdTokenExtractionStrategy;
 import com.rise_world.gematik.accesskeeper.server.util.LoopbackUtils;
 import com.rise_world.gematik.accesskeeper.server.util.PkceUtils;
@@ -76,6 +79,7 @@ public class AuthorizationServiceImpl implements AuthorizationService {
     private static final int MAX_LENGTH_NONCE = 512;
     private static final int MAX_LENGTH_CODE_CHALLENGE = 43;
     private static final int MAX_LENGTH_REDIRECT_URI = 2000;
+    private static final int MAX_LENGTH_IDP_ISS = 2000;
     private static final int MAX_LENGTH_AUTH_CODE_SEK = 2000;
     private static final int MAX_LENGTH_AMR = 40;
 
@@ -97,6 +101,7 @@ public class AuthorizationServiceImpl implements AuthorizationService {
     private ClaimExtractionStrategy challengeExtractionStrategy;
     private ClaimExtractionStrategy ssoTokenExtractionStrategy;
     private ClaimExtractionStrategy idTokenExtractionStrategy;
+    private ClaimExtractionStrategy federationIdTokenExtractionStrategy;
     private AuthenticationDataExtractionStrategy authenticationDataExtractionStrategy;
     private TokenCreationStrategy challengeStrategy;
     private TokenCreationStrategy authCodeStrategy;
@@ -107,8 +112,11 @@ public class AuthorizationServiceImpl implements AuthorizationService {
     private PairingVerificationInternalEndpoint pairingDienstClient;
     private SessionStorage sessionStorage;
     private DirectoryService directoryService;
+    private ExtParService extParService;
     private ExtAuthCodeService extAuthCodeService;
     private TaskExecutor taskExecutor;
+    private EntityStatementSynchronizationService entityStatementSynchronizationService;
+
 
     @Autowired
     @SuppressWarnings("squid:S00107") // parameters required for dependency injection
@@ -121,6 +129,7 @@ public class AuthorizationServiceImpl implements AuthorizationService {
                                     @Qualifier("challenge") ClaimExtractionStrategy challengeExtractionStrategy,
                                     @Qualifier("ssoToken") ClaimExtractionStrategy ssoTokenExtractionStrategy,
                                     IdTokenExtractionStrategy idTokenExtractionStrategy,
+                                    FederationIdTokenExtractionStrategy federationIdTokenExtractionStrategy,
                                     AuthenticationDataExtractionStrategy authenticationDataExtractionStrategy,
                                     Clock clock,
                                     CertificateReaderService certReader,
@@ -128,8 +137,10 @@ public class AuthorizationServiceImpl implements AuthorizationService {
                                     PairingVerificationInternalEndpoint pairingDienstClient,
                                     SessionStorage sessionStorage,
                                     DirectoryService directoryService,
+                                    ExtParService extParService,
                                     ExtAuthCodeService extAuthCodeService,
-                                    TaskExecutor taskExecutor) {
+                                    TaskExecutor taskExecutor,
+                                    EntityStatementSynchronizationService entityStatementSynchronizationService) {
         // CHECKSTYLE:ON
         this.configService = configService;
 
@@ -142,6 +153,7 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         this.ssoTokenExtractionStrategy = ssoTokenExtractionStrategy;
         this.authenticationDataExtractionStrategy = authenticationDataExtractionStrategy;
         this.idTokenExtractionStrategy = idTokenExtractionStrategy;
+        this.federationIdTokenExtractionStrategy = federationIdTokenExtractionStrategy;
 
         this.clock = clock;
         this.certReader = certReader;
@@ -149,9 +161,11 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         this.pairingDienstClient = pairingDienstClient;
         this.sessionStorage = sessionStorage;
         this.directoryService = directoryService;
+        this.extParService = extParService;
         this.extAuthCodeService = extAuthCodeService;
 
         this.taskExecutor = taskExecutor;
+        this.entityStatementSynchronizationService = entityStatementSynchronizationService;
     }
 
     @Override
@@ -246,9 +260,28 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         LogTool.setSessionId(sessionId);
         LOG.info("Created session");
 
+        ExtSessionEntity sessionEntity = saveSessionEntity(kkAppId, null, clientId, state, redirectUri, scope, codeChallenge, nonce, sessionId);
+
+        // @AFO: A_22264 -  Authorization Request als Client an den zugeh&ouml;rigen sektoralen Identity Provider
+        UrlBuilder urlBuilder = new UrlBuilder(remoteIdpDTO.getAppConfig().getKkAppUri())
+            .appendParameter(ClaimUtils.CLIENT_ID, OAuth2Constants.EXTERNAL_CLIENT_ID)
+            .appendUriParameter(ClaimUtils.REDIRECT_URI, redirectUri)
+            .appendParameter(ClaimUtils.STATE, sessionEntity.getState())
+            .appendParameter(ClaimUtils.NONCE, sessionEntity.getIdpNonce())
+            .appendParameter(ClaimUtils.RESPONSE_TYPE, OAuth2Constants.RESPONSE_TYPE_CODE)
+            .appendUriParameter(ClaimUtils.SCOPE, "openid erp_sek_auth")
+            .appendParameter(ClaimUtils.CODE_CHALLENGE_METHOD, OAuth2Constants.PKCE_METHOD_S256)
+            .appendParameter(ClaimUtils.CODE_CHALLENGE, PkceUtils.createCodeChallenge(sessionEntity.getIdpCodeVerifier()));
+
+        return urlBuilder.toString();
+    }
+
+    private ExtSessionEntity saveSessionEntity(String kkAppId, String idpIss, String clientId, String state, String redirectUri, String scope, String codeChallenge,
+                                               String nonce, String sessionId) {
         ExtSessionEntity sessionEntity = new ExtSessionEntity();
         sessionEntity.setState(sessionId);
         sessionEntity.setKkAppId(kkAppId);
+        sessionEntity.setIdpIss(idpIss);
 
         sessionEntity.setClientId(clientId);
         sessionEntity.setClientRedirectUri(redirectUri);
@@ -265,19 +298,7 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         sessionEntity.setIdpNonce(idpNonce);
 
         sessionStorage.writeSession(sessionEntity);
-
-        // @AFO: A_22264 -  Authorization Request als Client an den zugeh&ouml;rigen sektoralen Identity Provider
-        UrlBuilder urlBuilder = new UrlBuilder(remoteIdpDTO.getAppConfig().getKkAppUri())
-            .appendParameter(ClaimUtils.CLIENT_ID, OAuth2Constants.EXTERNAL_CLIENT_ID)
-            .appendUriParameter(ClaimUtils.REDIRECT_URI, redirectUri)
-            .appendParameter(ClaimUtils.STATE, sessionId)
-            .appendParameter(ClaimUtils.NONCE, idpNonce)
-            .appendParameter(ClaimUtils.RESPONSE_TYPE, OAuth2Constants.RESPONSE_TYPE_CODE)
-            .appendUriParameter(ClaimUtils.SCOPE,  "openid erp_sek_auth")
-            .appendParameter(ClaimUtils.CODE_CHALLENGE_METHOD, OAuth2Constants.PKCE_METHOD_S256)
-            .appendParameter(ClaimUtils.CODE_CHALLENGE, PkceUtils.createCodeChallenge(idpCodeVerifier));
-
-        return urlBuilder.toString();
+        return sessionEntity;
     }
 
     @Override
@@ -307,6 +328,10 @@ public class AuthorizationServiceImpl implements AuthorizationService {
             if (idTokenClaims.containsProperty(ClaimUtils.SEK_IDP_ORG_NUMBER)) {
                 cardClaims.put(ClaimUtils.ORG_NAME, idTokenClaims.getStringProperty(ClaimUtils.SEK_IDP_ORG_NUMBER)); // rename claim
             }
+            if (idTokenClaims.containsProperty(ClaimUtils.GIVEN_NAME) && idTokenClaims.containsProperty(ClaimUtils.FAMILY_NAME)) {
+                // A_22271-01 Verkettung von Vorname und Nachname bei Authentisierung durch ein sektorales Authenticator Modul
+                cardClaims.put(ClaimUtils.DISPLAY_NAME, idTokenClaims.getStringProperty(ClaimUtils.GIVEN_NAME) + " " + idTokenClaims.getStringProperty(ClaimUtils.FAMILY_NAME));
+            }
 
             JwtClaims sessionClaims = sessionToClaims(session);
             JwtClaims authCodeClaims = createAuthCode(authTime, authTime, getFdScope(sessionClaims), sessionClaims, cardClaims,
@@ -331,8 +356,8 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         JwtClaims sessionClaims = new JwtClaims();
         sessionClaims.setClaim(ClaimUtils.SESSION_ID, session.getState());
         sessionClaims.setClaim(ClaimUtils.CLIENT_ID, session.getClientId());
-        sessionClaims.setClaim(ClaimUtils.REDIRECT_URI,  session.getClientRedirectUri());
-        sessionClaims.setClaim(ClaimUtils.SCOPE,  session.getClientScope());
+        sessionClaims.setClaim(ClaimUtils.REDIRECT_URI, session.getClientRedirectUri());
+        sessionClaims.setClaim(ClaimUtils.SCOPE, session.getClientScope());
         sessionClaims.setClaim(ClaimUtils.CODE_CHALLENGE_METHOD, OAuth2Constants.PKCE_METHOD_S256);
         sessionClaims.setClaim(ClaimUtils.CODE_CHALLENGE, session.getClientCodeChallenge());
         sessionClaims.setClaim(ClaimUtils.RESPONSE_TYPE, OAuth2Constants.RESPONSE_TYPE_CODE);
@@ -347,6 +372,7 @@ public class AuthorizationServiceImpl implements AuthorizationService {
      *     <li>all requested scopes and their description
      *     <li>all requested claims and their description
      * </ul>
+     *
      * @param scopes the list of requested scopes
      * @return the created user consent
      */
@@ -416,6 +442,21 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         }
     }
 
+    private void validateIdpIssParameter(String idpIss) {
+        if (StringUtils.isBlank(idpIss)) {
+            throw new AccessKeeperException(ErrorCodes.FEDAUTH_MISSING_IDP_ISS);
+        }
+        if (idpIss.length() > MAX_LENGTH_IDP_ISS) {
+            throw new AccessKeeperException(ErrorCodes.FEDAUTH_INVALID_IDP_ISS);
+        }
+        try {
+            new URI(idpIss);
+        }
+        catch (URISyntaxException e) {
+            throw new AccessKeeperException(ErrorCodes.FEDAUTH_INVALID_IDP_ISS, e);
+        }
+    }
+
     private void validateExtAuthCodeParameters(String authorizationCode, String state, String kkAppRedirectUri) {
         if (StringUtils.isEmpty(authorizationCode)) {
             throw new AccessKeeperException(ErrorCodes.EXTAUTH_MISSING_CODE);
@@ -443,6 +484,23 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         }
         catch (URISyntaxException e) {
             throw new AccessKeeperException(ErrorCodes.EXTAUTH_INVALID_KKA_REDIRECT_URI, e);
+        }
+    }
+
+    private void validateFederationAuthCodeParameters(String authorizationCode, String state) {
+        if (StringUtils.isEmpty(authorizationCode)) {
+            throw new AccessKeeperException(ErrorCodes.FEDAUTH_MISSING_CODE);
+        }
+        if (StringUtils.isEmpty(state)) {
+            throw new AccessKeeperException(ErrorCodes.FEDAUTH_MISSING_STATE);
+        }
+        if (authorizationCode.length() > MAX_LENGTH_AUTH_CODE_SEK) {
+            LOG.warn("fed auth_code is invalid");
+            throw new AccessKeeperException(ErrorCodes.FEDAUTH_INVALID_CODE);
+        }
+        if (state.length() != 32 || !state.matches("\\p{XDigit}+")) {
+            LOG.warn("state is invalid");
+            throw new AccessKeeperException(ErrorCodes.FEDAUTH_INVALID_STATE);
         }
     }
 
@@ -488,7 +546,7 @@ public class AuthorizationServiceImpl implements AuthorizationService {
 
     @Override
     public RedeemedChallengeDTO processSignedChallenge(String signedChallenge) {
-        long authTime =  clock.instant().getEpochSecond(); // @AFO: A_20731 - auth_time wird auf den Zeitpunkt des Einlangens der signierten Challenge gesetzt
+        long authTime = clock.instant().getEpochSecond(); // @AFO: A_20731 - auth_time wird auf den Zeitpunkt des Einlangens der signierten Challenge gesetzt
 
         JwtClaims challengeClaims = signedChallengeExtractionStrategy.extractAndValidate(signedChallenge);
         LogTool.setSessionId(challengeClaims.getStringProperty(ClaimUtils.SESSION_ID));
@@ -743,6 +801,38 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         return new RedeemedSsoTokenDTO(authCode, challengeClaims.getStringProperty(ClaimUtils.REDIRECT_URI), challengeClaims.getStringProperty(ClaimUtils.STATE));
     }
 
+    @Override
+    public String startFederatedAuthorization(String idpIss, String responseType, String clientId, String appState, String appRedirectUri, String scope,
+                                              String appCodeChallenge, String appCodeChallengeMethod, String appNonce) {
+        validateAuthParameters(responseType, appState, scope, appCodeChallenge, appCodeChallengeMethod, appNonce);
+        validateIdpIssParameter(idpIss);
+        LogTool.setIdpIss(idpIss);
+
+        final List<String> scopes = ClaimUtils.getScopes(scope);
+        validateFachdienst(scopes); // validate scope -> fd mapping
+
+        // @AFO: A_23687 - Überprüfung ob es sich um einen bekannten sektoralen IDP handelt
+        EntityStatementDTO entityStatementDTO = entityStatementSynchronizationService.getEntityStatementCache(idpIss);
+
+        // @AFO: A_20522 - neue Session-Id wird generiert und in die Session geschrieben
+        String sessionId = sessionStorage.createSessionId();
+        LogTool.setSessionId(sessionId);
+        LOG.info("Created session");
+
+        ExtSessionEntity sessionEntity = saveSessionEntity(null, idpIss, clientId, appState, appRedirectUri, scope, appCodeChallenge, appNonce, sessionId);
+        String requestUri = extParService.sendParRequest(entityStatementDTO, sessionEntity);
+
+        String authEndpointUrl = entityStatementDTO.getAuthorizationEndpoint();
+        String issuer = configService.getIssuer(RequestSource.INTERNET);
+
+        // @AFO: A_23688 - Authorizationrequest an Auth-Endpunkt des sektoralen IDPs wird erstellt
+        UrlBuilder urlBuilder = new UrlBuilder(authEndpointUrl)
+            .appendUriParameter(ClaimUtils.CLIENT_ID, issuer)
+            .appendUriParameter(ClaimUtils.REQUEST_URI, requestUri);
+
+        return urlBuilder.toString();
+    }
+
     // @AFO: A_20949 - &Uuml;berpr&uuml;fung ob SSO Token und Challenge konsistent sind
     private void validateSsoTokenAndChallenge(JwtClaims ssoTokenClaims, JwtClaims challengeClaims, long epochSecond, String fdScope) {
 
@@ -776,6 +866,40 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         }
     }
 
+    @Override
+    public RedeemedChallengeDTO redeemFedAuthCode(String authorizationCode, String state) {
+        long authTime = clock.instant().getEpochSecond();
+        validateFederationAuthCodeParameters(authorizationCode, state);
+
+        ExtSessionEntity session = sessionStorage.getSession(state);
+        if (session == null) {
+            throw new AccessKeeperException(ErrorCodes.FEDAUTH_UNKNOWN_SESSION);
+        }
+        LogTool.setIdpIss(session.getIdpIss());
+        try {
+            EntityStatementDTO entityStatement = entityStatementSynchronizationService.getEntityStatementCache(session.getIdpIss());
+
+            // @AFO: A_23049 - Abruf des ID-Tokens
+            String idToken = extAuthCodeService.redeemFedAuthCode(entityStatement, authorizationCode, session.getIdpCodeVerifier());
+            LOG.info("Received id_token from federation idp [state={}]", state);
+
+            Map<String, Object> idTokenValidationContext = new HashMap<>();
+            idTokenValidationContext.put(FederationIdTokenExtractionStrategy.CONTEXT_ENTITY_STATEMENT, entityStatement);
+            idTokenValidationContext.put(FederationIdTokenExtractionStrategy.CONTEXT_SESSION, session);
+
+            final JwtClaims idTokenClaims = federationIdTokenExtractionStrategy.extractAndValidate(idToken, idTokenValidationContext);
+            Map<String, String> federationClaims = extractFederationClaims(idTokenClaims);
+            JwtClaims sessionClaims = sessionToClaims(session);
+            JwtClaims authCodeClaims = createAuthCode(authTime, authTime, getFdScope(sessionClaims), sessionClaims, federationClaims,
+                Collections.singletonList(OAuth2Constants.AMR_MULTI_FACTOR_AUTH));
+
+            return new RedeemedChallengeDTO(null, authCodeStrategy.toToken(authCodeClaims), session.getClientRedirectUri(), session.getClientState());
+        }
+        finally {
+            sessionStorage.destroySession(state);
+        }
+    }
+
     private Map<String, String> extractCardClaims(JwtClaims ssoTokenClaims) {
         Map<String, String> cardClaims = new HashMap<>();
         for (String claimName : ClaimUtils.CARD_CLAIMS) {
@@ -786,11 +910,31 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         return cardClaims;
     }
 
+    private Map<String, String> extractFederationClaims(JwtClaims idTokenClaims) {
+        Map<String, String> cardClaims = new HashMap<>();
+
+        if (idTokenClaims.containsProperty(ClaimUtils.URN_PROFESSION)) {
+            cardClaims.put(ClaimUtils.PROFESSION, idTokenClaims.getStringProperty(ClaimUtils.URN_PROFESSION));
+        }
+        if (idTokenClaims.containsProperty(ClaimUtils.URN_ORGANIZATION)) {
+            cardClaims.put(ClaimUtils.ORG_NAME, idTokenClaims.getStringProperty(ClaimUtils.URN_ORGANIZATION));
+        }
+        if (idTokenClaims.containsProperty(ClaimUtils.URN_ID)) {
+            cardClaims.put(ClaimUtils.ID_NUMBER, idTokenClaims.getStringProperty(ClaimUtils.URN_ID));
+        }
+        if (idTokenClaims.containsProperty(ClaimUtils.URN_DISPLAY_NAME)) {
+            cardClaims.put(ClaimUtils.DISPLAY_NAME, idTokenClaims.getStringProperty(ClaimUtils.URN_DISPLAY_NAME));
+        }
+        cardClaims.put(ClaimUtils.FAMILY_NAME, "");
+        cardClaims.put(ClaimUtils.GIVEN_NAME, "");
+        return cardClaims;
+    }
+
     /**
      * Calculates expiry time depending on the configuration. The expiry time must not exceed 24 hours.
      *
-     * @param scope the requested scope
-     * @param authTime   timestamp of the last authentication using an approved mechanism (e.g. smartcard)
+     * @param scope    the requested scope
+     * @param authTime timestamp of the last authentication using an approved mechanism (e.g. smartcard)
      * @return expiry time calculated using configuration and iat
      * @AFO A_20313-01 - Berechnet die G&uuml;ltigkeitsdauer des SSO-Tokens
      * @AFO A_20692-01 - Begrenzt die G&uuml;ltigkeitsdauer des SSO-Tokens auf 24h
@@ -858,5 +1002,4 @@ public class AuthorizationServiceImpl implements AuthorizationService {
             throw new AccessKeeperException(ErrorCodes.VAL1_ALT_AUTH_FAILED, e);
         }
     }
-
 }

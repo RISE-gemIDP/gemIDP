@@ -67,6 +67,8 @@ public class DiscoveryServiceImpl implements DiscoveryService {
             // external authentication claims
             discoveryClaims.setProperty("kk_app_list_uri", issuer + "/directory/kk_apps");
             discoveryClaims.setProperty("third_party_authorization_endpoint", issuer + "/extauth");
+            discoveryClaims.setProperty("fed_idp_list_uri", issuer + "/directory/fed_idp_list");
+            discoveryClaims.setProperty("federation_authorization_endpoint", issuer + "/fedauth");
         }
 
         discoveryClaims.setProperty("uri_puk_idp_enc", issuer + "/certs/puk_idp_enc");         // @AFO: A_20458-01 uri_puk_idp_enc          @AFO: A_20732

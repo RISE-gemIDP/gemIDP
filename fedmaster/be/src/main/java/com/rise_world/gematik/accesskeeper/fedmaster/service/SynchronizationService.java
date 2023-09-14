@@ -5,7 +5,11 @@
  */
 package com.rise_world.gematik.accesskeeper.fedmaster.service;
 
+import com.rise_world.gematik.accesskeeper.common.service.FederationEndpointProvider;
+import com.rise_world.gematik.accesskeeper.common.service.SynchronizationConfiguration;
+import com.rise_world.gematik.accesskeeper.common.token.ClaimUtils;
 import com.rise_world.gematik.accesskeeper.common.token.extraction.parser.IdpJwsJwtCompactConsumer;
+import com.rise_world.gematik.accesskeeper.fedmaster.FederationMasterConfiguration;
 import com.rise_world.gematik.accesskeeper.fedmaster.dto.ParticipantDomainDto;
 import com.rise_world.gematik.accesskeeper.fedmaster.dto.ParticipantDto;
 import com.rise_world.gematik.accesskeeper.fedmaster.dto.ParticipantKeyDto;
@@ -49,7 +53,6 @@ import static com.rise_world.gematik.accesskeeper.fedmaster.service.StatusCode.O
 import static com.rise_world.gematik.accesskeeper.fedmaster.service.StatusCode.SCOPES_INVALID;
 import static com.rise_world.gematik.accesskeeper.fedmaster.service.StatusCode.SIGNATURE_INVALID;
 import static com.rise_world.gematik.accesskeeper.fedmaster.service.StatusCode.TOKEN_INVALID;
-import static com.rise_world.gematik.accesskeeper.fedmaster.util.JwtUtils.getListStringProperty;
 import static com.rise_world.gematik.accesskeeper.fedmaster.util.JwtUtils.getStringProperty;
 import static java.lang.String.format;
 import static java.lang.String.join;
@@ -128,7 +131,9 @@ public class SynchronizationService {
         else if (participant.getType() == RP) {
             // check scopes
             Set<String> registeredScopes = new HashSet<>(scopeRepository.findByParticipant(participant.getId()));
-            Set<String> scopes = getListStringProperty(entityStatement, METADATA, RP.getType(), "scope").map(HashSet::new).orElseGet(HashSet::new);
+            Set<String> scopes = getStringProperty(entityStatement, METADATA, RP.getType(), "scope")
+                .map(ClaimUtils::getScopes)
+                .map(HashSet::new).orElseGet(HashSet::new);
 
             if (!Objects.equals(registeredScopes, scopes)) {
                 String regScope = join(" ", registeredScopes);
@@ -258,7 +263,7 @@ public class SynchronizationService {
     private JwtClaims fetchEntityStatement(ParticipantDto participant) throws SynchronizationException {
         String token;
         try {
-            token = endpointProvider.create(participant.getSub()).getFederationEntity();
+            token = endpointProvider.create(participant.getSub(), FederationMasterConfiguration.USER_AGENT).getFederationEntity();
         }
         catch (WebApplicationException ex) {
             Instant notReachable = getNotReachableSince(participant);

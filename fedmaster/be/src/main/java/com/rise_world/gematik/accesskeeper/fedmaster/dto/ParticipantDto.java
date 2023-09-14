@@ -20,6 +20,7 @@ public class ParticipantDto {
     private Timestamp lastScheduledRun;
     private Timestamp lastMonitoredAt;
     private String zisGroup;
+    private boolean pkv;
 
     public Long getId() {
         return id;
@@ -107,5 +108,13 @@ public class ParticipantDto {
 
     public void setZisGroup(String zisGroup) {
         this.zisGroup = zisGroup;
+    }
+
+    public boolean isPkv() {
+        return pkv;
+    }
+
+    public void setPkv(boolean pkv) {
+        this.pkv = pkv;
     }
 }

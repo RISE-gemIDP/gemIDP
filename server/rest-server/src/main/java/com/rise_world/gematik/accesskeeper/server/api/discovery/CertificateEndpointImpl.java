@@ -7,16 +7,13 @@ package com.rise_world.gematik.accesskeeper.server.api.discovery;
 
 import com.rise_world.gematik.accesskeeper.server.service.CertService;
 import com.rise_world.gematik.idp.server.api.discovery.CertificateEndpoint;
-import com.rise_world.gematik.idp.server.api.discovery.JsonWebKey;
 import com.rise_world.gematik.idp.server.api.discovery.JsonWebKeys;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.ws.rs.core.Response;
 
-import static org.apache.cxf.rs.security.jose.jwk.JsonWebKey.EC_CURVE;
-import static org.apache.cxf.rs.security.jose.jwk.JsonWebKey.EC_X_COORDINATE;
-import static org.apache.cxf.rs.security.jose.jwk.JsonWebKey.EC_Y_COORDINATE;
+import static com.rise_world.gematik.accesskeeper.common.JwkUtils.transform;
 
 @RestController
 public class CertificateEndpointImpl implements CertificateEndpoint {
@@ -49,19 +46,4 @@ public class CertificateEndpointImpl implements CertificateEndpoint {
         return Response.ok(transform(certService.getSignatureCert())).build();
     }
 
-    private JsonWebKey transform(org.apache.cxf.rs.security.jose.jwk.JsonWebKey src) {
-        JsonWebKey dst = new JsonWebKey();
-        dst.setKid(src.getKeyId());
-        if (src.getPublicKeyUse() != null) {
-            dst.setUse(src.getPublicKeyUse().toString());
-        }
-        dst.setAlg(src.getAlgorithm());
-        dst.setKty(src.getKeyType().toString());
-        dst.setCrv(src.getStringProperty(EC_CURVE));
-        dst.setX(src.getStringProperty(EC_X_COORDINATE));
-        dst.setY(src.getStringProperty(EC_Y_COORDINATE));
-        dst.setX5c(src.getX509Chain());
-
-        return dst;
-    }
 }

@@ -5,6 +5,7 @@
  */
 package com.rise_world.gematik.accesskeeper.fedmaster.service;
 
+import com.rise_world.gematik.accesskeeper.common.service.SynchronizationConfiguration;
 import com.rise_world.gematik.accesskeeper.fedmaster.dto.ParticipantDto;
 import com.rise_world.gematik.accesskeeper.fedmaster.dto.ParticipantType;
 import com.rise_world.gematik.accesskeeper.fedmaster.repository.ParticipantRepository;

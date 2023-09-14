@@ -10,16 +10,14 @@ import com.rise_world.gematik.idp.server.api.discovery.DiscoveryEndpoint;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.servlet.http.HttpServletRequest;
-
 // @AFO: A_20686 - separates Interface f&uuml;r DISC
 @RestController
 public class DiscoveryEndpointImpl implements DiscoveryEndpoint {
 
-    private DiscoveryService discoveryService;
+    private final DiscoveryService discoveryService;
 
     @Autowired
-    public DiscoveryEndpointImpl(DiscoveryService discoveryService, HttpServletRequest servletRequest) {
+    public DiscoveryEndpointImpl(DiscoveryService discoveryService) {
         this.discoveryService = discoveryService;
     }
 

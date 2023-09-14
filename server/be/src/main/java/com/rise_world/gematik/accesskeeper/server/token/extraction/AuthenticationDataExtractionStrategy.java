@@ -5,6 +5,7 @@
  */
 package com.rise_world.gematik.accesskeeper.server.token.extraction;
 
+import com.rise_world.gematik.accesskeeper.common.crypt.CryptoConstants;
 import com.rise_world.gematik.accesskeeper.common.crypt.DecryptionProviderFactory;
 import com.rise_world.gematik.accesskeeper.common.dto.TokenType;
 import com.rise_world.gematik.accesskeeper.common.exception.AccessKeeperException;
@@ -41,7 +42,7 @@ public class AuthenticationDataExtractionStrategy implements ExtractionStrategy<
         this.tokenParser = new JweTokenParser(decryptionProvider, ErrorCodes.VAL1_ALT_AUTH_FAILED,
             this::extractChallengeExp,
             new HeaderExpiry(clock, ErrorCodes.VAL1_ALT_AUTH_FAILED, ErrorCodes.VAL1_ALT_AUTH_FAILED),
-            new EpkValidation(ErrorCodes.VAL1_ALT_AUTH_FAILED),
+            new EpkValidation(CryptoConstants.JWE_BRAINPOOL_CURVE, ErrorCodes.VAL1_ALT_AUTH_FAILED),
             h -> {
                 if (!ClaimUtils.NESTED_TOKEN_CTY_VALUE.equals(h.getContentType()) || !ClaimUtils.hasJoseType(h, JoseType.JWT)) {
                     throw new AccessKeeperException(ErrorCodes.VAL1_ALT_AUTH_FAILED);

@@ -3,7 +3,7 @@
  * Research Industrial Systems Engineering (RISE) Forschungs-, Entwicklungs- und Großprojektberatung GmbH,
  * soweit nicht im Folgenden näher gekennzeichnet.
  */
-package com.rise_world.gematik.accesskeeper.fedmaster.service;
+package com.rise_world.gematik.accesskeeper.common.service;
 
 import com.fasterxml.jackson.jaxrs.json.JacksonJsonProvider;
 import com.rise_world.gematik.accesskeeper.common.util.LoggingInvocationHandler;
@@ -19,7 +19,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.Collections;
 
-import static com.rise_world.gematik.accesskeeper.fedmaster.FederationMasterConfiguration.USER_AGENT;
 
 /**
  * Interface to provide access to a federation endpoint
@@ -37,13 +36,32 @@ public class FederationEndpointProvider {
 
     /**
      * Creates a FederationConfigurationEndpoint client depending on the provided address
-     * @param address representing the FederationConfigurationEndpoint
+     *
+     * @param endpointUrl representing the FederationConfigurationEndpoint
+     * @param userAgent   HTTP User-Agent Header
      * @return an implementation of a FederationConfigurationEndpoint
      */
-    public FederationConfigurationEndpoint create(String address) {
-        FederationConfigurationEndpoint endpoint = JAXRSClientFactory.create(address, FederationConfigurationEndpoint.class,
+    public FederationConfigurationEndpoint create(String endpointUrl, String userAgent) {
+        FederationConfigurationEndpoint endpoint = JAXRSClientFactory.create(endpointUrl, FederationConfigurationEndpoint.class,
             Collections.singletonList(jacksonJsonProvider), false);
+        setupWebClient(userAgent, endpoint);
+        return LoggingInvocationHandler.createLoggingProxy("FederationConfigurationEndpoint", FederationConfigurationEndpoint.class, endpoint);
+    }
 
+    /**
+     * Create a web client for the specified endpoint url
+     *
+     * @param endpointUrl the endpoint url
+     * @param userAgent   HTTP User-Agent Header
+     * @return the created client
+     */
+    public SignedJwksEndpoint createJwksEndpoint(String endpointUrl, String userAgent) {
+        SignedJwksEndpoint endpoint = JAXRSClientFactory.create(endpointUrl, SignedJwksEndpoint.class, Collections.singletonList(jacksonJsonProvider), false);
+        setupWebClient(userAgent, endpoint);
+        return LoggingInvocationHandler.createLoggingProxy("SignedJwksEndpoint", SignedJwksEndpoint.class, endpoint);
+    }
+
+    private void setupWebClient(String userAgent, Object endpoint) {
         Client restClient = WebClient.client(endpoint);
         ClientConfiguration config = WebClient.getConfig(restClient);
         config.getResponseContext().put("buffer.proxy.response", Boolean.TRUE); // GEMIDP-1244 prevent connection leaks
@@ -51,10 +69,8 @@ public class FederationEndpointProvider {
         HTTPConduit conduit = config.getHttpConduit();
         conduit.setTlsClientParameters(TlsUtils.createTLSClientParameters());
         HTTPClientPolicy httpClientPolicy = conduit.getClient();
-        httpClientPolicy.setBrowserType(USER_AGENT);
+        httpClientPolicy.setBrowserType(userAgent);
         httpClientPolicy.setConnectionTimeout(configuration.getConnectionTimeout().toMillis());
         httpClientPolicy.setReceiveTimeout(configuration.getReceiveTimeout().toMillis());
-
-        return LoggingInvocationHandler.createLoggingProxy("FederationConfigurationEndpoint", FederationConfigurationEndpoint.class, endpoint);
     }
 }

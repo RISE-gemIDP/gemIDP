@@ -63,7 +63,7 @@ public class SignedChallengeExtractionStrategy extends AbstractClaimExtractionSt
         super(new JweTokenParser(decryptionFactory.createDecryptionProvider(TokenType.CHALLENGE),
                 ErrorCodes.AUTH_INVALID_CHALLENGE,
                 new HeaderExpiry(clock, ErrorCodes.AUTH_CHALLENGE_MISSING_EXPIRY, ErrorCodes.AUTH_CHALLENGE_EXPIRED),
-                new EpkValidation(ErrorCodes.AUTH_INVALID_CHALLENGE)));
+                new EpkValidation(CryptoConstants.JWE_BRAINPOOL_CURVE, ErrorCodes.AUTH_INVALID_CHALLENGE)));
         this.challengeExtractionStrategy = challengeExtractionStrategy;
         this.certificateReaderService = certificateReaderService;
     }

@@ -7,6 +7,7 @@ package com.rise_world.gematik.accesskeeper.pairingdienst.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rise_world.gematik.accesskeeper.common.OAuth2Constants;
+import com.rise_world.gematik.accesskeeper.common.crypt.CryptoConstants;
 import com.rise_world.gematik.accesskeeper.common.crypt.DecryptionProviderFactory;
 import com.rise_world.gematik.accesskeeper.common.crypt.IdNummerAnonymizer;
 import com.rise_world.gematik.accesskeeper.common.dto.TokenType;
@@ -101,7 +102,7 @@ public class PairingServiceImpl implements PairingService {
     private final ObjectMapper objectMapper;
 
     @SuppressWarnings("java:S3749") // class is stateless
-    private final EpkValidation epkValidation = new EpkValidation(ErrorCodes.REG1_CLIENT_ERROR);
+    private final EpkValidation epkValidation = new EpkValidation(CryptoConstants.JWE_BRAINPOOL_CURVE, ErrorCodes.REG1_CLIENT_ERROR);
 
     @Autowired
     @SuppressWarnings("squid:S00107") // parameters required for dependency injection

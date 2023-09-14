@@ -61,4 +61,14 @@ public class ErrorMessage implements Serializable {
     public int getHttpError() {
         return httpError;
     }
+
+    @Override
+    public String toString() {
+        return "ErrorMessage{" +
+            "gematikCode=" + gematikCode +
+            ", oAuth2Error=" + oAuth2Error +
+            ", text='" + text + '\'' +
+            ", httpError=" + httpError +
+            '}';
+    }
 }

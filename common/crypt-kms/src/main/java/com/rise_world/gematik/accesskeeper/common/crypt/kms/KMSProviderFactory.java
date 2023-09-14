@@ -83,7 +83,7 @@ public class KMSProviderFactory implements EncryptionProviderFactory, Decryption
         // @AFO: A_21445 - AccessToken wird mit ECDH_ES_DIRECT entschl&uuml;sselt
         else if (type.isEcdhEsDecrypt()) {
             // ECDH
-            return new JweDecryption(new KMSEcdhDirectKeyDecryptionAlgorithm(tokenResource), new AesGcmContentDecryptionAlgorithm(ContentAlgorithm.A256GCM));
+            return new JweDecryption(new KMSEcdhDirectKeyDecryptionAlgorithm(tokenResource, type), new AesGcmContentDecryptionAlgorithm(ContentAlgorithm.A256GCM));
         }
 
         throw new IllegalArgumentException();
@@ -118,6 +118,9 @@ public class KMSProviderFactory implements EncryptionProviderFactory, Decryption
         }
         else if (KeyConstants.PUK_IDP_SIG_SEK.equals(kid)) {
             keyDefinition = certResource.getIdpSekSigForJwk();
+        }
+        else if (KeyConstants.PUK_IDP_ENC_SEK.equals(kid)) {
+            keyDefinition = certResource.getIdpSekEncForJwk();
         }
         else if (KeyConstants.PUK_FEDMASTER_SIG.equals(kid)) {
             keyDefinition = certResource.getIdpFedSigForJwk();

@@ -60,6 +60,7 @@ public class TokenServiceImpl implements TokenService {
         ClaimUtils.CLIENT_ID,
         ClaimUtils.GIVEN_NAME,
         ClaimUtils.FAMILY_NAME,
+        ClaimUtils.DISPLAY_NAME,
         ClaimUtils.ORG_NAME,
         ClaimUtils.PROFESSION,
         ClaimUtils.ID_NUMBER
@@ -71,6 +72,7 @@ public class TokenServiceImpl implements TokenService {
         ClaimUtils.NONCE,
         ClaimUtils.GIVEN_NAME,
         ClaimUtils.FAMILY_NAME,
+        ClaimUtils.DISPLAY_NAME,
         ClaimUtils.ORG_NAME,
         ClaimUtils.PROFESSION,
         ClaimUtils.ID_NUMBER
