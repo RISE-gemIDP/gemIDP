@@ -7,7 +7,6 @@ package com.rise_world.gematik.accesskeeper.fedmaster.service;
 
 import com.rise_world.gematik.accesskeeper.common.service.FederationEndpointProvider;
 import com.rise_world.gematik.accesskeeper.common.service.SynchronizationConfiguration;
-import com.rise_world.gematik.accesskeeper.common.token.ClaimUtils;
 import com.rise_world.gematik.accesskeeper.common.token.extraction.parser.IdpJwsJwtCompactConsumer;
 import com.rise_world.gematik.accesskeeper.fedmaster.FederationMasterConfiguration;
 import com.rise_world.gematik.accesskeeper.fedmaster.dto.ParticipantDomainDto;
@@ -16,11 +15,14 @@ import com.rise_world.gematik.accesskeeper.fedmaster.dto.ParticipantKeyDto;
 import com.rise_world.gematik.accesskeeper.fedmaster.repository.DomainRepository;
 import com.rise_world.gematik.accesskeeper.fedmaster.repository.ParticipantRepository;
 import com.rise_world.gematik.accesskeeper.fedmaster.repository.PublicKeyRepository;
-import com.rise_world.gematik.accesskeeper.fedmaster.repository.ScopeRepository;
+import com.rise_world.gematik.accesskeeper.fedmaster.service.validation.RelyingPartyClaimValidationResult;
+import com.rise_world.gematik.accesskeeper.fedmaster.service.validation.RelyingPartyValidationResult;
+import com.rise_world.gematik.accesskeeper.fedmaster.service.validation.RelyingPartyValidator;
+import com.rise_world.gematik.accesskeeper.fedmaster.util.HttpsEnforcer;
 import com.rise_world.gematik.accesskeeper.fedmaster.util.PemUtils;
 import com.rise_world.gematik.accesskeeper.fedmaster.util.SynchronizationLog;
+import jakarta.ws.rs.WebApplicationException;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.cxf.rs.security.jose.jwa.SignatureAlgorithm;
 import org.apache.cxf.rs.security.jose.jws.JwsJwtCompactConsumer;
 import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
 import org.apache.cxf.rs.security.jose.jwt.JwtConstants;
@@ -29,16 +31,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.ws.rs.WebApplicationException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.security.PublicKey;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -46,18 +48,20 @@ import java.util.Set;
 import static com.rise_world.gematik.accesskeeper.common.token.ClaimUtils.getLongPropertyWithoutException;
 import static com.rise_world.gematik.accesskeeper.fedmaster.dto.ParticipantType.OP;
 import static com.rise_world.gematik.accesskeeper.fedmaster.dto.ParticipantType.RP;
+import static com.rise_world.gematik.accesskeeper.fedmaster.service.StatusCode.INVALID_SUB;
 import static com.rise_world.gematik.accesskeeper.fedmaster.service.StatusCode.KID_UNKNOWN;
 import static com.rise_world.gematik.accesskeeper.fedmaster.service.StatusCode.MAX_DOWNTIME_REACHED;
 import static com.rise_world.gematik.accesskeeper.fedmaster.service.StatusCode.NOT_REACHABLE;
 import static com.rise_world.gematik.accesskeeper.fedmaster.service.StatusCode.OK;
-import static com.rise_world.gematik.accesskeeper.fedmaster.service.StatusCode.SCOPES_INVALID;
+import static com.rise_world.gematik.accesskeeper.fedmaster.service.StatusCode.REGISTRATION_DATA_INVALID;
 import static com.rise_world.gematik.accesskeeper.fedmaster.service.StatusCode.SIGNATURE_INVALID;
 import static com.rise_world.gematik.accesskeeper.fedmaster.service.StatusCode.TOKEN_INVALID;
 import static com.rise_world.gematik.accesskeeper.fedmaster.util.JwtUtils.getStringProperty;
-import static java.lang.String.format;
-import static java.lang.String.join;
+import static com.rise_world.gematik.accesskeeper.fedmaster.util.MarkerUtils.appendParticipant;
 import static java.util.Collections.singletonMap;
-import static java.util.Map.of;
+import static java.util.Map.entry;
+import static java.util.Objects.isNull;
+import static net.logstash.logback.marker.Markers.appendEntries;
 
 @Service
 @EnableTransactionManagement
@@ -65,87 +69,128 @@ public class SynchronizationService {
 
     private static final int MAX_URI_LENGTH = 2000;
     private static final int MAX_ORG_LENGTH = 128;
-    private static final String[] OP_ENDPOINTS = { "authorization_endpoint", "token_endpoint", "pushed_authorization_request_endpoint"};
+    private static final String[] OP_ENDPOINTS = {"authorization_endpoint", "token_endpoint", "pushed_authorization_request_endpoint"};
     private static final String METADATA = "metadata";
 
     private final SynchronizationConfiguration configuration;
     private final ParticipantRepository participantRepository;
     private final PublicKeyRepository keyRepository;
     private final DomainRepository domainRepository;
-    private final ScopeRepository scopeRepository;
+    private final RelyingPartyValidator relyingPartyValidator;
     private final FederationEndpointProvider endpointProvider;
     private final long iatLeeway;
     private final Clock clock;
+
+    // use as a _final_ field, instead of accessing via the config object,
+    // so the jit can optimize and remove dead code
+    private final boolean lockRelyingParty;
 
     public SynchronizationService(Clock clock,
                                   SynchronizationConfiguration configuration,
                                   ParticipantRepository participantRepository,
                                   PublicKeyRepository keyRepository,
                                   DomainRepository domainRepository,
-                                  ScopeRepository scopeRepository,
+                                  RelyingPartyValidator relyingPartyValidator,
                                   FederationEndpointProvider endpointProvider,
                                   @Value("${token.iat.leeway}") long iatLeeway) {
         this.configuration = configuration;
         this.participantRepository = participantRepository;
         this.keyRepository = keyRepository;
         this.domainRepository = domainRepository;
-        this.scopeRepository = scopeRepository;
+        this.relyingPartyValidator = relyingPartyValidator;
         this.endpointProvider = endpointProvider;
         this.iatLeeway = iatLeeway;
         this.clock = clock;
+        this.lockRelyingParty = configuration.lockRelyingParty();
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = SynchronizationException.class)
     public void synchronizeParticipant(ParticipantDto participant, Instant synchronizationTime) throws SynchronizationException {
         SynchronizationLog.log(OK, "synchronizing participant {}", participant.getSub());
-        JwtClaims entityStatement = fetchEntityStatement(participant);
 
+        validateSub(participant);
+
+        var entityStatement = fetchEntityStatement(participant);
         validateEntityStatement(participant, entityStatement);
 
-        if (participant.getType() == OP) {
-            // update orgName and logo_uri
-            Optional<String> orgName = getStringProperty(entityStatement, METADATA, OP.getType(), "organization_name");
-
-            if (orgName.isPresent() && isValidOrganizationName(orgName.get())) {
-                participant.setOrganizationName(orgName.get());
-            }
-            else {
-                throw new SynchronizationException(TOKEN_INVALID, "organization name not valid");
-            }
-
-            Optional<String> logoUri = getStringProperty(entityStatement, METADATA, OP.getType(), "logo_uri");
-            if (logoUri.isPresent() && isValidUri(logoUri.get())) {
-                participant.setLogoUri(logoUri.get());
-            }
-            else {
-                throw new SynchronizationException(TOKEN_INVALID, "logo uri not valid");
-            }
-
-            // update domain list for CTR
-            Set<String> expectedDomainNames = getDomains(entityStatement);
-            List<ParticipantDomainDto> domains = domainRepository.findByParticipant(participant.getId());
-
-            removeUnusedDomains(expectedDomainNames, domains);
-            addNewDomains(participant, expectedDomainNames, domains);
-        }
-        else if (participant.getType() == RP) {
-            // check scopes
-            Set<String> registeredScopes = new HashSet<>(scopeRepository.findByParticipant(participant.getId()));
-            Set<String> scopes = getStringProperty(entityStatement, METADATA, RP.getType(), "scope")
-                .map(ClaimUtils::getScopes)
-                .map(HashSet::new).orElseGet(HashSet::new);
-
-            if (!Objects.equals(registeredScopes, scopes)) {
-                String regScope = join(" ", registeredScopes);
-                String fetchedScopes = join(" ", scopes);
-                throw new SynchronizationException(SCOPES_INVALID,
-                    of("registered_scopes", regScope, "fetched_scopes", fetchedScopes),
-                    format("registered scopes (%s) do not match fetched scopes (%s)", regScope, fetchedScopes));
-            }
+        switch (participant.getType()) {
+            case OP -> synchronizeOpenIdProvider(participant, entityStatement);
+            case RP -> synchronizeRelyingParty(participant, entityStatement);
+            default -> throw new IllegalArgumentException("unsupported participant type " + participant.getType());
         }
 
         participantRepository.synchronizeParticipant(participant, Timestamp.from(synchronizationTime));
         SynchronizationLog.log(OK, "participant {} synchronized", participant.getSub());
+    }
+
+    private void synchronizeOpenIdProvider(ParticipantDto participant, JwtClaims entityStatement) throws SynchronizationException {
+        // updating domains for CTR check to detect potential certificate issues is more important
+        // than orgName and logoUri updates
+        updateDomains(participant, entityStatement);
+
+        // update orgName and logo_uri
+        Optional<String> orgName = getStringProperty(entityStatement, METADATA, OP.getType(), "organization_name");
+
+        if (orgName.isPresent() && isValidOrganizationName(orgName.get())) {
+            participant.setOrganizationName(orgName.get());
+        }
+        else {
+            throw new SynchronizationException(TOKEN_INVALID, "organization name not valid");
+        }
+
+        Optional<String> logoUri = getStringProperty(entityStatement, METADATA, OP.getType(), "logo_uri");
+        if (logoUri.isPresent() && isValidUri(logoUri.get())) {
+            participant.setLogoUri(logoUri.get());
+        }
+        else {
+            throw new SynchronizationException(TOKEN_INVALID, "logo uri not valid");
+        }
+    }
+
+    private void updateDomains(ParticipantDto participant, JwtClaims entityStatement) throws SynchronizationException {
+        Set<String> expectedDomainNames = getDomains(entityStatement);
+        List<ParticipantDomainDto> domains = domainRepository.findByParticipant(participant.getId());
+
+        removeUnusedDomains(expectedDomainNames, domains);
+        addNewDomains(participant, expectedDomainNames, domains);
+    }
+
+    private void synchronizeRelyingParty(ParticipantDto participant, JwtClaims entityStatement) throws SynchronizationException {
+        var result = relyingPartyValidator.validate(participant, entityStatement);
+        var lockTimestamp = handleParticipantLock(participant, result);
+
+        result.warnings()
+            .ifPresent(warnings -> SynchronizationLog.log(OK,
+                appendParticipant(participant)
+                    .and(appendEntries(warnings.getRelated())),
+                warnings.getMessage()));
+
+        var errors = result.errors();
+        if (errors.isPresent()) {
+            var errorDetails = errors.get();
+            var related = new HashMap<>(errorDetails.getRelated());
+            lockTimestamp.ifPresent(lock -> related.put("participant_lock_timestamp", lock.toString()));
+            throw new SynchronizationException(REGISTRATION_DATA_INVALID, related, errorDetails.getMessage());
+        }
+    }
+
+    private Optional<Instant> handleParticipantLock(ParticipantDto participant, RelyingPartyValidationResult result) {
+        if (!lockRelyingParty || result.lockParticipant() == participant.isLocked()) {
+            return Optional.empty();
+        }
+
+        // negate -> lockParticipant: true means active: false
+        participantRepository.setActive(participant.getId(), !result.lockParticipant());
+
+        var timestamp = clock.instant();
+        SynchronizationLog.log(OK, appendParticipant(participant), "set active {} for participant {} at {}", !result.lockParticipant(), participant.getSub(), timestamp);
+        return Optional.of(timestamp);
+    }
+
+    private static void validateSub(ParticipantDto participant) throws SynchronizationException {
+        if (!HttpsEnforcer.isHttps(participant.getSub())) {
+            throw new SynchronizationException(INVALID_SUB, "unsupported sub uri '%s'".formatted(participant.getSub()));
+        }
     }
 
     private void validateEntityStatement(ParticipantDto participant, JwtClaims entityStatement) throws SynchronizationException {
@@ -203,7 +248,7 @@ public class SynchronizationService {
         if (input.length() > MAX_ORG_LENGTH) {
             return false;
         }
-        return input.matches("[\\x20-\\x7E]+");
+        return input.matches("^[ÄÖÜäöüß\\w \\-.&+*/]{1,128}$");
     }
 
     @Transactional
@@ -233,7 +278,6 @@ public class SynchronizationService {
     private Set<String> getDomains(JwtClaims entityStatement) throws SynchronizationException {
         Set<String> domains = new HashSet<>();
 
-        domains.add(extractDomain(entityStatement.getSubject()));
         for (String endpoint : OP_ENDPOINTS) {
             String endpointUri = getStringProperty(entityStatement, METADATA, OP.getType(), endpoint)
                 .orElseThrow(() -> new SynchronizationException(TOKEN_INVALID, endpoint + " not found"));
@@ -285,26 +329,56 @@ public class SynchronizationService {
             throw new SynchronizationException(TOKEN_INVALID, "token does not conform to JWS compact serialization format", e);
         }
 
-        ParticipantKeyDto participantKey = keyRepository.findKeyByParticipantAndKeyId(participant.getId(), consumer.getJwsHeaders().getKeyId())
-            .orElseThrow(() -> new SynchronizationException(KID_UNKNOWN,
-                singletonMap("kid_jwt_es", consumer.getJwsHeaders().getKeyId()),
-                consumer.getJwsHeaders().getKeyId() + " kid not found for participant"));
-
-        try {
-            Optional<PublicKey> publicKey = PemUtils.readPublicKey(participantKey.getPem());
-            if (publicKey.isEmpty() || !consumer.verifySignatureWith(publicKey.get(), SignatureAlgorithm.ES256)) {
-                throw new SynchronizationException(SIGNATURE_INVALID,
-                    singletonMap("kid_jwt_es", consumer.getJwsHeaders().getKeyId()),
-                    "signature could not be verified for entity statement of participant");
-            }
-        }
-        catch (Exception e) {
-            throw new SynchronizationException(SIGNATURE_INVALID,
-                singletonMap("kid_jwt_es", consumer.getJwsHeaders().getKeyId()),
-                "signature could not be verified for entity statement of participant", e);
+        var validationError = validateSignature(participant, consumer);
+        if (validationError.isPresent()) {
+            handleKeyValidationError(participant, validationError.get());
         }
 
         return consumer.getJwtClaims();
+    }
+
+    private void handleKeyValidationError(ParticipantDto participant, KeyValidationError validation) throws SynchronizationException {
+        var related = new HashMap<>(validation.related());
+        if (participant.getType() == RP) {
+            var relyingPartyValidation = new RelyingPartyValidationResult();
+            relyingPartyValidation.add(RelyingPartyClaimValidationResult.lockingError(validation.message(), validation.related()));
+            handleParticipantLock(participant, relyingPartyValidation)
+                .ifPresent(lockTimestamp -> related.put("participant_lock_timestamp", lockTimestamp.toString()));
+        }
+
+        throw new SynchronizationException(validation.status(), related, validation.message());
+    }
+
+    private Optional<KeyValidationError> validateSignature(ParticipantDto participant, JwsJwtCompactConsumer consumer) {
+        var pem = keyRepository.findKeyByParticipantAndKeyId(participant.getId(), consumer.getJwsHeaders().getKeyId())
+            .map(ParticipantKeyDto::getPem)
+            .orElse(null);
+        if (isNull(pem)) {
+            return Optional.of(new KeyValidationError(KID_UNKNOWN,
+                singletonMap("kid_jwt_es", consumer.getJwsHeaders().getKeyId()),
+                consumer.getJwsHeaders().getKeyId() + " kid not found for participant"));
+        }
+
+        var signatureAlgorithm = consumer.getJwsHeaders().getSignatureAlgorithm();
+        if (!SupportedSignatureAlgorithms.isSupported(signatureAlgorithm)) {
+            return Optional.of(new KeyValidationError(StatusCode.UNSUPPORTED_SIGNATURE_ALGORITHM,
+                Map.ofEntries(
+                    entry("kid_jwt_es", consumer.getJwsHeaders().getKeyId()),
+                    entry("alg", String.valueOf(signatureAlgorithm))),
+                "unsupported signature algorithm"));
+        }
+
+        var validSignature = PemUtils.readPublicKey(pem)
+            .filter(key -> consumer.verifySignatureWith(key, signatureAlgorithm))
+            .isPresent();
+
+        if (!validSignature) {
+            return Optional.of(new KeyValidationError(SIGNATURE_INVALID,
+                singletonMap("kid_jwt_es", consumer.getJwsHeaders().getKeyId()),
+                "signature could not be verified for entity statement of participant"));
+        }
+
+        return Optional.empty();
     }
 
     private Instant getNotReachableSince(ParticipantDto participant) {
@@ -312,4 +386,6 @@ public class SynchronizationService {
             .plus(configuration.getExpiration());
     }
 
+    private record KeyValidationError(StatusCode status, Map<String, String> related, String message) {
+    }
 }

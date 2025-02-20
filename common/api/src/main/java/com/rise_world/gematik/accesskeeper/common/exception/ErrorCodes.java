@@ -68,7 +68,6 @@ public class ErrorCodes {
     // in case of internal server errors which are sent as redirect
     public static final ErrorMessage AUTH_INTERNAL_SERVER_ERROR = new ErrorMessage(2100, OAuth2Error.SERVER_ERROR, "Ein Fehler ist aufgetreten", 302);
 
-
     // token endpoint errors 3xxx
     public static final ErrorMessage TOKEN_BROKEN_CODE_CHALLENGE = new ErrorMessage(3000, OAuth2Error.INVALID_GRANT, "code_verifier stimmt nicht mit code_challenge \u00fcberein");
     public static final ErrorMessage TOKEN_MISSING_CLAIMS = new ErrorMessage(3001, OAuth2Error.INVALID_GRANT, "Claims unvollst\u00e4ndig im Authorization Code");
@@ -101,25 +100,7 @@ public class ErrorCodes {
         "Der erzeugte Schl\u00fcssel konnte aufgrund eines bestehenden Eintrags nicht registriert werden.", 409);
     public static final ErrorMessage AC2_NO_DATA_ACCESS = new ErrorMessage(4005, OAuth2Error.SERVER_ERROR, "Die Registrierungsdaten konnten nicht bezogen werden.", 500);
 
-    // external auth endpoint errors 5xxx
-    public static final ErrorMessage EXTAUTH_MISSING_KK_APP = new ErrorMessage(5000, OAuth2Error.INVALID_REQUEST, "kk_app_id wurde nicht \u00fcbermittelt");
-    public static final ErrorMessage EXTAUTH_UNKNOWN_KK_APP = new ErrorMessage(5001, OAuth2Error.INVALID_REQUEST, "kk_app_id ist ung\u00fcltig");
-    public static final ErrorMessage EXTAUTH_IDP_NOT_AVAILABLE = new ErrorMessage(5002, OAuth2Error.TEMP_UNAVAILABLE, "sektoraler IDP ist nicht erreichbar");
-    public static final ErrorMessage EXTAUTH_UNKNOWN_SESSION = new ErrorMessage(5010, OAuth2Error.ACCESS_DENIED, "Session ist ung\u00fcltig");
-
-    public static final ErrorMessage EXTAUTH_MISSING_CODE = new ErrorMessage(5011, OAuth2Error.INVALID_REQUEST, "code wurde nicht \u00fcbermittelt");
-    public static final ErrorMessage EXTAUTH_MISSING_STATE = new ErrorMessage(5012, OAuth2Error.INVALID_REQUEST, "state wurde nicht \u00fcbermittelt");
-    public static final ErrorMessage EXTAUTH_MISSING_KKA_REDIRECT_URI = new ErrorMessage(5013, OAuth2Error.INVALID_REQUEST, "kk_app_redirect_uri wurde nicht \u00fcbermittelt");
-
-    public static final ErrorMessage EXTAUTH_INVALID_CODE = new ErrorMessage(5014, OAuth2Error.INVALID_REQUEST, "code ist ung\u00fcltig");
-    public static final ErrorMessage EXTAUTH_INVALID_STATE = new ErrorMessage(5015, OAuth2Error.INVALID_REQUEST, "state ist ung\u00fcltig");
-    public static final ErrorMessage EXTAUTH_INVALID_KKA_REDIRECT_URI = new ErrorMessage(5016, OAuth2Error.INVALID_REQUEST, "kk_app_redirect_uri ist ung\u00fcltig");
-
-    public static final ErrorMessage EXTAUTH_FAILED_TO_REDEEM = new ErrorMessage(5020, OAuth2Error.INVALID_GRANT, "Id-Token konnte nicht abgerufen werden");
-    public static final ErrorMessage EXTAUTH_INVALID_ID_TOKEN = new ErrorMessage(5021, OAuth2Error.INVALID_GRANT, "Id-Token ist ung\u00fcltig");
-
     // federation errors 7xxx
-
     public static final ErrorMessage FED_INVALID_MASTER_SIGNATURE = new ErrorMessage(7000, OAuth2Error.SERVER_ERROR,
         "Signatur des Federation Master Tokens ist ung\u00fcltig", 500);
     public static final ErrorMessage FED_MASTER_NOT_AVAILABLE = new ErrorMessage(7001, OAuth2Error.SERVER_ERROR, "Federation Master ist nicht erreichbar", 500);

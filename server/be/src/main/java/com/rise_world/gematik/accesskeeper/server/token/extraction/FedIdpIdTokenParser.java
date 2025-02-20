@@ -13,7 +13,6 @@ import com.rise_world.gematik.accesskeeper.common.token.extraction.parser.TokenP
 import com.rise_world.gematik.accesskeeper.common.token.extraction.validation.ClaimValidation;
 import com.rise_world.gematik.accesskeeper.common.token.extraction.validation.EpkValidation;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.Validate;
 import org.apache.cxf.rs.security.jose.jwe.JweCompactConsumer;
 import org.apache.cxf.rs.security.jose.jwe.JweDecryptionProvider;
 import org.apache.cxf.rs.security.jose.jwe.JweException;
@@ -23,6 +22,8 @@ import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
 import org.apache.cxf.rs.security.jose.jws.JwsException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Objects;
 
 /**
  * Decrypts the supplied token. A JWT (not nested) token is expected.
@@ -35,7 +36,7 @@ public class FedIdpIdTokenParser implements TokenParser {
     private final ClaimValidation<JweHeaders>[] headerValidation;
 
     public FedIdpIdTokenParser(JweDecryptionProvider decryption) {
-        this.decryption = Validate.notNull(decryption);
+        this.decryption = Objects.requireNonNull(decryption);
         this.headerValidation = new ClaimValidation[] {new EpkValidation(JsonWebKey.EC_CURVE_P256, ErrorCodes.FEDAUTH_INVALID_ID_TOKEN)};
     }
 

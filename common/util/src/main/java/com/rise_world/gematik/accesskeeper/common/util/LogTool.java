@@ -97,6 +97,13 @@ public class LogTool {
     }
 
     /**
+     * Clear any issuer of a remote idp from the MDC
+     */
+    public static void clearIdpIss() {
+        MDC.remove(MDC_IDP_ISS);
+    }
+
+    /**
      * Writes the URI of the remote token endpoint to the MDC
      *
      * @param tokenEndpoint the token endpoint URI

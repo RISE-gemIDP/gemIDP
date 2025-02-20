@@ -5,11 +5,11 @@
  */
 package com.rise_world.gematik.accesskeeper.fedmaster.repository;
 
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import com.rise_world.gematik.accesskeeper.fedmaster.dto.ParticipantScopes;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
+import java.util.Map;
 
 @Repository
 public class ScopeRepositoryImpl extends JdbcRepository implements ScopeRepository {
@@ -23,11 +23,10 @@ public class ScopeRepositoryImpl extends JdbcRepository implements ScopeReposito
     }
 
     @Override
-    public List<String> findByParticipant(Long identifier) {
-        return this.jdbcTemplate.queryForList(
+    public ParticipantScopes findByParticipant(Long identifier) {
+        return new ParticipantScopes(this.jdbcTemplate.queryForList(
             SELECT_BY_PARTICIPANT,
-            new MapSqlParameterSource(COL_PARTICIPANT_ID, identifier),
-            String.class
-        );
+            Map.of(COL_PARTICIPANT_ID, identifier),
+            String.class));
     }
 }

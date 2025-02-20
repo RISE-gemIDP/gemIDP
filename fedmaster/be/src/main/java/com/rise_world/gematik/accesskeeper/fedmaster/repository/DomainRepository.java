@@ -16,6 +16,7 @@ public interface DomainRepository {
 
     /**
      * Fetches all domains associated to a participant
+     *
      * @param identifier of the participant
      * @return a list of domains
      */
@@ -23,12 +24,14 @@ public interface DomainRepository {
 
     /**
      * Removes a domain from the repository
+     *
      * @param identifier to be removed
      */
     void delete(Long identifier);
 
     /**
      * Saves a domain to the repository
+     *
      * @param domain to be saved
      */
     void save(ParticipantDomainDto domain);

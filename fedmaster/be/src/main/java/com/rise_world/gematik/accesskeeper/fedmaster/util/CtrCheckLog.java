@@ -5,6 +5,7 @@
  */
 package com.rise_world.gematik.accesskeeper.fedmaster.util;
 
+import com.rise_world.gematik.accesskeeper.fedmaster.schedule.CTRProvider;
 import com.rise_world.gematik.accesskeeper.fedmaster.service.Severity;
 import com.rise_world.gematik.accesskeeper.fedmaster.service.StatusCode;
 import org.slf4j.Logger;
@@ -22,8 +23,10 @@ public class CtrCheckLog {
 
     private static final Logger CTR_LOG = LoggerFactory.getLogger(CTR_LOG_NAME);
 
-    private CtrCheckLog() {
-        // avoid instantiation
+    private final CTRProvider provider;
+
+    public CtrCheckLog(CTRProvider provider) {
+        this.provider = provider;
     }
 
     /**
@@ -33,7 +36,7 @@ public class CtrCheckLog {
      * @param msg           the log message
      * @param params        the message parameters (will be interpolated)
      */
-    public static void log(StatusCode statusCode, String msg, Object... params) {
+    public void log(StatusCode statusCode, String msg, Object... params) {
         log(statusCode, empty(), msg, params);
     }
 
@@ -45,7 +48,12 @@ public class CtrCheckLog {
      * @param msg           the log message
      * @param params        the message parameters (will be interpolated)
      */
-    public static void log(StatusCode statusCode, Marker marker, String msg, Object... params) {
+    public void log(StatusCode statusCode, Marker marker, String msg, Object... params) {
+
+        if (!marker.contains(MarkerUtils.CTR_PROVIDER)) {
+            marker.add(MarkerUtils.ctrProvider(provider));
+        }
+
         if (statusCode.getSeverity() == Severity.ERROR) {
             CTR_LOG.error(append("error_code", statusCode.getCode()).and(marker), msg, params);
         }

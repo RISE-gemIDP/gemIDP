@@ -11,14 +11,17 @@ import org.bouncycastle.asn1.ASN1Object;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.asn1.x509.Certificate;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.asn1.x9.X9ObjectIdentifiers;
+import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.util.encoders.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.io.StringReader;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
@@ -35,7 +38,7 @@ public class PemUtils {
 
     private static final Map<ASN1ObjectIdentifier, String> ALGORITHMS = new HashMap<>();
 
-    // org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter maps id_ecPublicKey to 'ECDSA'. this doesn't work with cxf JwsUtils beacuse they expect 'EC'
+    // org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter maps id_ecPublicKey to 'ECDSA'. this doesn't work with cxf JwsUtils because they expect 'EC'
     static {
         ALGORITHMS.put(X9ObjectIdentifiers.id_ecPublicKey, "EC");
         ALGORITHMS.put(PKCSObjectIdentifiers.rsaEncryption, "RSA");
@@ -86,6 +89,21 @@ public class PemUtils {
         catch (Exception e) {
             LOG.error("problem reading PEM formatted string", e);
             return null;
+        }
+    }
+
+    public static Optional<Certificate> parseCertificate(String certificate) {
+        try {
+            var object = new PEMParser(new StringReader(certificate)).readObject();
+            if (!(object instanceof X509CertificateHolder certificateHolder)) {
+                return Optional.empty();
+            }
+
+            return Optional.ofNullable(Certificate.getInstance(certificateHolder.getEncoded()));
+        }
+        catch (IOException e) {
+            LOG.error("error reading certificate", e);
+            return Optional.empty();
         }
     }
 }

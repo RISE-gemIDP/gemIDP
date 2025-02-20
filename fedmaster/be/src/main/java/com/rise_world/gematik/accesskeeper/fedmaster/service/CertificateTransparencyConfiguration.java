@@ -19,11 +19,21 @@ public class CertificateTransparencyConfiguration {
     @DurationUnit(ChronoUnit.SECONDS)
     private Duration expiration;
 
+    private Duration maxDowntime;
+
     public Duration getExpiration() {
         return expiration;
     }
 
     public void setExpiration(Duration expiration) {
         this.expiration = expiration;
+    }
+
+    public Duration getMaxDowntime() {
+        return maxDowntime;
+    }
+
+    public void setMaxDowntime(Duration maxDowntime) {
+        this.maxDowntime = maxDowntime;
     }
 }

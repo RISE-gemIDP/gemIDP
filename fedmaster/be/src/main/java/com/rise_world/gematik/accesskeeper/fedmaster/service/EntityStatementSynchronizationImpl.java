@@ -7,9 +7,7 @@ package com.rise_world.gematik.accesskeeper.fedmaster.service;
 
 import com.rise_world.gematik.accesskeeper.common.service.SynchronizationConfiguration;
 import com.rise_world.gematik.accesskeeper.fedmaster.dto.ParticipantDto;
-import com.rise_world.gematik.accesskeeper.fedmaster.dto.ParticipantType;
 import com.rise_world.gematik.accesskeeper.fedmaster.repository.ParticipantRepository;
-import com.rise_world.gematik.accesskeeper.fedmaster.util.CtrCheckLog;
 import com.rise_world.gematik.accesskeeper.fedmaster.util.SynchronizationLog;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
@@ -34,88 +32,59 @@ public class EntityStatementSynchronizationImpl implements EntityStatementSynchr
     private final SynchronizationConfiguration configuration;
     private final SynchronizationService service;
     private final Clock clock;
-    private final CertificateTransparencyConfiguration ctConfiguration;
-    private final CertificateTransparencyService ctService;
+    private final boolean lockRelyingParty;
 
     public EntityStatementSynchronizationImpl(Clock clock,
                                               SynchronizationConfiguration configuration,
-                                              CertificateTransparencyConfiguration ctConfiguration,
                                               ParticipantRepository participantRepository,
-                                              SynchronizationService service,
-                                              CertificateTransparencyService ctService) {
+                                              SynchronizationService service) {
         this.configuration = configuration;
-        this.ctConfiguration = ctConfiguration;
         this.participantRepository = participantRepository;
         this.service = service;
-        this.ctService = ctService;
         this.clock = clock;
+        this.lockRelyingParty = configuration.lockRelyingParty();
     }
 
     @Override
     public void synchronize() {
         Instant synchronizationTime = Instant.now(clock);
         SynchronizationLog.log(OK, "synchronization job started at {}", synchronizationTime);
-        CtrCheckLog.log(OK, "monitoring job started at {}", synchronizationTime);
 
+        List<ParticipantDto> toBeSynced = loadParticipants(synchronizationTime);
+        SynchronizationLog.log(OK, "{} participant(s) found for synchronization", toBeSynced.size());
+
+        toBeSynced.forEach(participant -> doSynchronize(participant, synchronizationTime));
+        SynchronizationLog.log(OK, "finished synchronization successfully");
+    }
+
+    private List<ParticipantDto> loadParticipants(Instant synchronizationTime) {
         Date syncedBefore = Date.from(synchronizationTime.minus(configuration.getExpiration()));
-        Date monitoredBefore = Date.from(synchronizationTime.minus(ctConfiguration.getExpiration()));
-        List<ParticipantDto> toBeSynced = participantRepository.findBeforeSyncAt(syncedBefore, monitoredBefore);
 
-        long toBeSyncedCount = toBeSynced.stream().filter(e -> e.getSynchronizedAt().before(syncedBefore)).count();
-        long toBeMonitoredCount = toBeSynced.stream().filter(e -> e.getType() == ParticipantType.OP && e.getLastMonitoredAt().before(monitoredBefore)).count();
-
-        SynchronizationLog.log(OK, "{} participant(s) found for synchronization", toBeSyncedCount);
-        CtrCheckLog.log(OK, "{} participant(s) found for monitoring", toBeMonitoredCount);
-
-        for (ParticipantDto participant : toBeSynced) {
-            if (participant.getSynchronizedAt().before(syncedBefore)) {
-                doSynchronize(participant, synchronizationTime);
-            }
-
-            if (participant.getLastMonitoredAt().before(monitoredBefore)) {
-                doMonitoring(participant, synchronizationTime);
-            }
+        if (lockRelyingParty) {
+            return participantRepository.findBeforeSyncAtWithInactive(syncedBefore);
         }
 
-        SynchronizationLog.log(OK, "finished synchronization successfully");
-        CtrCheckLog.log(OK, "finished monitoring successfully");
+        return participantRepository.findBeforeSyncAt(syncedBefore);
     }
 
     @Override
-    public void synchronizeParticipant(Long identifier, boolean dataSync, boolean ctrCheck) {
+    public void synchronizeParticipant(Long identifier) {
         Instant synchronizationTime = Instant.now(clock);
-
-        Optional<ParticipantDto> participant = participantRepository.findById(identifier);
-        if (participant.isPresent()) {
-            if (dataSync) {
-                SynchronizationLog.log(OK, "synchronization job started at {}", synchronizationTime);
-                doSynchronize(participant.get(), synchronizationTime);
-                SynchronizationLog.log(OK, "finished synchronization successfully");
-            }
-            if (ctrCheck) {
-                CtrCheckLog.log(OK, "monitoring job started at {}", synchronizationTime);
-                doMonitoring(participant.get(), synchronizationTime);
-                CtrCheckLog.log(OK, "finished monitoring successfully");
-            }
-        }
-        else {
-            if (dataSync) {
-                SynchronizationLog.log(TECHNICAL, "participant with identifier {} not found", identifier);
-            }
-            if (ctrCheck) {
-                CtrCheckLog.log(TECHNICAL, "participant with identifier {} not found", identifier);
-            }
-        }
+        loadParticipant(identifier)
+            .ifPresentOrElse(participant -> {
+                    SynchronizationLog.log(OK, "synchronization job started at {}", synchronizationTime);
+                    doSynchronize(participant, synchronizationTime);
+                    SynchronizationLog.log(OK, "finished synchronization successfully");
+                },
+                () -> SynchronizationLog.log(TECHNICAL, "participant with identifier {} not found", identifier));
     }
 
-    private void doMonitoring(ParticipantDto participantDto, Instant synchronizationTime) {
-        try {
-            ctService.checkParticipant(participantDto.getId(), synchronizationTime);
+    private Optional<ParticipantDto> loadParticipant(Long identifier) {
+        if (lockRelyingParty) {
+            return participantRepository.findByIdWithInactive(identifier);
         }
-        catch (Exception ex) {
-            CtrCheckLog.log(TECHNICAL, appendParticipant(participantDto),
-                "certificate transparency monitoring for participant {} failed - reason: {}", participantDto.getSub(), ex.getMessage(), ex);
-        }
+
+        return participantRepository.findById(identifier);
     }
 
     private void doSynchronize(ParticipantDto participant, Instant synchronizationTime) {
@@ -125,12 +94,12 @@ public class EntityStatementSynchronizationImpl implements EntityStatementSynchr
         catch (SynchronizationException ex) {
             if (ex.getStatusCode().getSeverity() == ERROR) {
                 SynchronizationLog.log(ex.getStatusCode(), appendParticipant(participant)
-                    .and(appendEntries(ex.getRelated())),
+                        .and(appendEntries(ex.getRelated())),
                     "synchronization for participant {} failed - reason: {}", participant.getSub(), ex.getMessage(), ex);
             }
             else {
                 SynchronizationLog.log(ex.getStatusCode(), appendParticipant(participant)
-                    .and(appendEntries(ex.getRelated())),
+                        .and(appendEntries(ex.getRelated())),
                     "synchronization for participant {} currently not possible - reason: {}", participant.getSub(), ex.getMessage(), ex);
             }
         }

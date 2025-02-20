@@ -11,11 +11,13 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.web.servlet.support.SpringBootServletInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * Spring Boot Application runner.
  */
+@EnableAsync
 @EnableScheduling
 @SpringBootApplication(scanBasePackages = {"com.rise_world.gematik.accesskeeper"})
 public class Application extends SpringBootServletInitializer {

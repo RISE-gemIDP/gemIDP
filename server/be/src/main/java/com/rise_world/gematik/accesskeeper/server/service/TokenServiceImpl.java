@@ -63,7 +63,8 @@ public class TokenServiceImpl implements TokenService {
         ClaimUtils.DISPLAY_NAME,
         ClaimUtils.ORG_NAME,
         ClaimUtils.PROFESSION,
-        ClaimUtils.ID_NUMBER
+        ClaimUtils.ID_NUMBER,
+        ClaimUtils.ORG_IK_NUMBER
     };
 
     // relevant authorization code claims for id token
@@ -75,7 +76,8 @@ public class TokenServiceImpl implements TokenService {
         ClaimUtils.DISPLAY_NAME,
         ClaimUtils.ORG_NAME,
         ClaimUtils.PROFESSION,
-        ClaimUtils.ID_NUMBER
+        ClaimUtils.ID_NUMBER,
+        ClaimUtils.ORG_IK_NUMBER
     };
 
     private ClaimExtractionStrategy authCodeExtraction;

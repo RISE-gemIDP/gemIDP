@@ -14,11 +14,11 @@ public class ParticipantDto {
     private ParticipantType type;
     private boolean active;
     private String organizationName;
+    private String clientName;
     private String logoUri;
     private String userTypeSupported;
     private Timestamp synchronizedAt;
     private Timestamp lastScheduledRun;
-    private Timestamp lastMonitoredAt;
     private String zisGroup;
     private boolean pkv;
 
@@ -46,6 +46,10 @@ public class ParticipantDto {
         this.type = type;
     }
 
+    public boolean isLocked() {
+        return !isActive();
+    }
+
     public boolean isActive() {
         return active;
     }
@@ -60,6 +64,14 @@ public class ParticipantDto {
 
     public void setOrganizationName(String organizationName) {
         this.organizationName = organizationName;
+    }
+
+    public String getClientName() {
+        return clientName;
+    }
+
+    public void setClientName(String clientName) {
+        this.clientName = clientName;
     }
 
     public String getLogoUri() {
@@ -92,14 +104,6 @@ public class ParticipantDto {
 
     public void setLastScheduledRun(Timestamp lastScheduledRun) {
         this.lastScheduledRun = lastScheduledRun;
-    }
-
-    public Timestamp getLastMonitoredAt() {
-        return lastMonitoredAt;
-    }
-
-    public void setLastMonitoredAt(Timestamp lastMonitoredAt) {
-        this.lastMonitoredAt = lastMonitoredAt;
     }
 
     public String getZisGroup() {

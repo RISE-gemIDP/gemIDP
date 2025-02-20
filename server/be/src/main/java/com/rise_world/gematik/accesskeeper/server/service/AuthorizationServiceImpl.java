@@ -27,7 +27,6 @@ import com.rise_world.gematik.accesskeeper.server.dto.ChallengeDTO;
 import com.rise_world.gematik.accesskeeper.server.dto.EntityStatementDTO;
 import com.rise_world.gematik.accesskeeper.server.dto.RedeemedChallengeDTO;
 import com.rise_world.gematik.accesskeeper.server.dto.RedeemedSsoTokenDTO;
-import com.rise_world.gematik.accesskeeper.server.dto.RemoteIdpDTO;
 import com.rise_world.gematik.accesskeeper.server.dto.RequestSource;
 import com.rise_world.gematik.accesskeeper.server.dto.UserConsentDTO;
 import com.rise_world.gematik.accesskeeper.server.entity.ExtSessionEntity;
@@ -36,7 +35,6 @@ import com.rise_world.gematik.accesskeeper.server.model.Fachdienst;
 import com.rise_world.gematik.accesskeeper.server.model.Scope;
 import com.rise_world.gematik.accesskeeper.server.token.extraction.AuthenticationDataExtractionStrategy;
 import com.rise_world.gematik.accesskeeper.server.token.extraction.FederationIdTokenExtractionStrategy;
-import com.rise_world.gematik.accesskeeper.server.token.extraction.IdTokenExtractionStrategy;
 import com.rise_world.gematik.accesskeeper.server.util.LoopbackUtils;
 import com.rise_world.gematik.accesskeeper.server.util.PkceUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -100,7 +98,6 @@ public class AuthorizationServiceImpl implements AuthorizationService {
     private ClaimExtractionStrategy signedChallengeExtractionStrategy;
     private ClaimExtractionStrategy challengeExtractionStrategy;
     private ClaimExtractionStrategy ssoTokenExtractionStrategy;
-    private ClaimExtractionStrategy idTokenExtractionStrategy;
     private ClaimExtractionStrategy federationIdTokenExtractionStrategy;
     private AuthenticationDataExtractionStrategy authenticationDataExtractionStrategy;
     private TokenCreationStrategy challengeStrategy;
@@ -111,7 +108,6 @@ public class AuthorizationServiceImpl implements AuthorizationService {
     private CertificateServiceClient certificateServiceClient;
     private PairingVerificationInternalEndpoint pairingDienstClient;
     private SessionStorage sessionStorage;
-    private DirectoryService directoryService;
     private ExtParService extParService;
     private ExtAuthCodeService extAuthCodeService;
     private TaskExecutor taskExecutor;
@@ -128,7 +124,6 @@ public class AuthorizationServiceImpl implements AuthorizationService {
                                     @Qualifier("signedChallenge") ClaimExtractionStrategy signedChallengeExtractionStrategy,
                                     @Qualifier("challenge") ClaimExtractionStrategy challengeExtractionStrategy,
                                     @Qualifier("ssoToken") ClaimExtractionStrategy ssoTokenExtractionStrategy,
-                                    IdTokenExtractionStrategy idTokenExtractionStrategy,
                                     FederationIdTokenExtractionStrategy federationIdTokenExtractionStrategy,
                                     AuthenticationDataExtractionStrategy authenticationDataExtractionStrategy,
                                     Clock clock,
@@ -136,7 +131,6 @@ public class AuthorizationServiceImpl implements AuthorizationService {
                                     CertificateServiceClient certificateServiceClient,
                                     PairingVerificationInternalEndpoint pairingDienstClient,
                                     SessionStorage sessionStorage,
-                                    DirectoryService directoryService,
                                     ExtParService extParService,
                                     ExtAuthCodeService extAuthCodeService,
                                     TaskExecutor taskExecutor,
@@ -152,7 +146,6 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         this.challengeExtractionStrategy = challengeExtractionStrategy;
         this.ssoTokenExtractionStrategy = ssoTokenExtractionStrategy;
         this.authenticationDataExtractionStrategy = authenticationDataExtractionStrategy;
-        this.idTokenExtractionStrategy = idTokenExtractionStrategy;
         this.federationIdTokenExtractionStrategy = federationIdTokenExtractionStrategy;
 
         this.clock = clock;
@@ -160,7 +153,6 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         this.certificateServiceClient = certificateServiceClient;
         this.pairingDienstClient = pairingDienstClient;
         this.sessionStorage = sessionStorage;
-        this.directoryService = directoryService;
         this.extParService = extParService;
         this.extAuthCodeService = extAuthCodeService;
 
@@ -246,41 +238,10 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         return new ChallengeDTO(challenge, userConsent); // @AFO: A_20523 - Der generierte UserConsent wird gemeinsam mit der Challenge retourniert
     }
 
-    @Override
-    public String startExternalAuthorization(String kkAppId, String responseType, String clientId, String state, String redirectUri, String scope,
-                                             String codeChallenge, String codeChallengeMethod, String nonce) {
-        validateAuthParameters(responseType, state, scope, codeChallenge, codeChallengeMethod, nonce);
-        final List<String> scopes = ClaimUtils.getScopes(scope);
-        validateFachdienst(scopes); // validate scope -> fd mapping
-
-        RemoteIdpDTO remoteIdpDTO = directoryService.getRemoteIdpConfig(kkAppId);
-
-        // @AFO: A_20522 - neue Session-Id wird generiert und in die Session geschrieben
-        String sessionId = sessionStorage.createSessionId();
-        LogTool.setSessionId(sessionId);
-        LOG.info("Created session");
-
-        ExtSessionEntity sessionEntity = saveSessionEntity(kkAppId, null, clientId, state, redirectUri, scope, codeChallenge, nonce, sessionId);
-
-        // @AFO: A_22264 -  Authorization Request als Client an den zugeh&ouml;rigen sektoralen Identity Provider
-        UrlBuilder urlBuilder = new UrlBuilder(remoteIdpDTO.getAppConfig().getKkAppUri())
-            .appendParameter(ClaimUtils.CLIENT_ID, OAuth2Constants.EXTERNAL_CLIENT_ID)
-            .appendUriParameter(ClaimUtils.REDIRECT_URI, redirectUri)
-            .appendParameter(ClaimUtils.STATE, sessionEntity.getState())
-            .appendParameter(ClaimUtils.NONCE, sessionEntity.getIdpNonce())
-            .appendParameter(ClaimUtils.RESPONSE_TYPE, OAuth2Constants.RESPONSE_TYPE_CODE)
-            .appendUriParameter(ClaimUtils.SCOPE, "openid erp_sek_auth")
-            .appendParameter(ClaimUtils.CODE_CHALLENGE_METHOD, OAuth2Constants.PKCE_METHOD_S256)
-            .appendParameter(ClaimUtils.CODE_CHALLENGE, PkceUtils.createCodeChallenge(sessionEntity.getIdpCodeVerifier()));
-
-        return urlBuilder.toString();
-    }
-
-    private ExtSessionEntity saveSessionEntity(String kkAppId, String idpIss, String clientId, String state, String redirectUri, String scope, String codeChallenge,
+    private ExtSessionEntity saveSessionEntity(String idpIss, String clientId, String state, String redirectUri, String scope, String codeChallenge,
                                                String nonce, String sessionId) {
         ExtSessionEntity sessionEntity = new ExtSessionEntity();
         sessionEntity.setState(sessionId);
-        sessionEntity.setKkAppId(kkAppId);
         sessionEntity.setIdpIss(idpIss);
 
         sessionEntity.setClientId(clientId);
@@ -299,57 +260,6 @@ public class AuthorizationServiceImpl implements AuthorizationService {
 
         sessionStorage.writeSession(sessionEntity);
         return sessionEntity;
-    }
-
-    @Override
-    // @AFO: A_22265 - Verarbeitung des AuthCode des sektoralen IDPs
-    public RedeemedChallengeDTO redeemExternalAuthCode(String authorizationCode, String state, String kkAppRedirectUri) {
-        long authTime = clock.instant().getEpochSecond();
-        validateExtAuthCodeParameters(authorizationCode, state, kkAppRedirectUri);
-
-        ExtSessionEntity session = sessionStorage.getSession(state); // @AFO: A_22265 - Sitzungsdaten aus A_22263 werden rekonstruiert
-        if (session == null) {
-            throw new AccessKeeperException(ErrorCodes.EXTAUTH_UNKNOWN_SESSION);
-        }
-
-        try {
-            // @AFO: A_22265 - sektoraler IDP wird anhand der kk_app_id aus den Sitzungsdaten ermittelt
-            RemoteIdpDTO remoteIdpDTO = directoryService.getRemoteIdpConfig(session.getKkAppId());
-
-            String idToken = extAuthCodeService.redeemAuthCode(remoteIdpDTO, authorizationCode, kkAppRedirectUri, session.getIdpCodeVerifier());
-            LOG.info("Received id_token from sektor idp [state={}]", state);
-
-            Map<String, Object> idTokenValidationContext = new HashMap<>();
-            idTokenValidationContext.put(IdTokenExtractionStrategy.CONTEXT_REMOTE_IDP, remoteIdpDTO);
-            idTokenValidationContext.put(IdTokenExtractionStrategy.CONTEXT_SESSION, session);
-
-            final JwtClaims idTokenClaims = idTokenExtractionStrategy.extractAndValidate(idToken, idTokenValidationContext);
-            Map<String, String> cardClaims = extractCardClaims(idTokenClaims);
-            if (idTokenClaims.containsProperty(ClaimUtils.SEK_IDP_ORG_NUMBER)) {
-                cardClaims.put(ClaimUtils.ORG_NAME, idTokenClaims.getStringProperty(ClaimUtils.SEK_IDP_ORG_NUMBER)); // rename claim
-            }
-            if (idTokenClaims.containsProperty(ClaimUtils.GIVEN_NAME) && idTokenClaims.containsProperty(ClaimUtils.FAMILY_NAME)) {
-                // A_22271-01 Verkettung von Vorname und Nachname bei Authentisierung durch ein sektorales Authenticator Modul
-                cardClaims.put(ClaimUtils.DISPLAY_NAME, idTokenClaims.getStringProperty(ClaimUtils.GIVEN_NAME) + " " + idTokenClaims.getStringProperty(ClaimUtils.FAMILY_NAME));
-            }
-
-            JwtClaims sessionClaims = sessionToClaims(session);
-            JwtClaims authCodeClaims = createAuthCode(authTime, authTime, getFdScope(sessionClaims), sessionClaims, cardClaims,
-                Collections.singletonList(OAuth2Constants.AMR_MULTI_FACTOR_AUTH));
-
-            Client client = configService.getClientById(session.getClientId());
-            String ssoToken = null;
-            if (client.isNeedsSsoToken()) {
-                JwtClaims ssoClaims = createSsoTokenFromExtIdToken(authTime, authCodeClaims);
-                // @AFO: A_20696 - Verschlüsselung des "SSO_TOKEN"
-                ssoToken = ssoStrategy.toToken(ssoClaims);
-            }
-
-            return new RedeemedChallengeDTO(ssoToken, authCodeStrategy.toToken(authCodeClaims), session.getClientRedirectUri(), session.getClientState());
-        }
-        finally {
-            sessionStorage.destroySession(state);
-        }
     }
 
     private JwtClaims sessionToClaims(ExtSessionEntity session) {
@@ -454,36 +364,6 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         }
         catch (URISyntaxException e) {
             throw new AccessKeeperException(ErrorCodes.FEDAUTH_INVALID_IDP_ISS, e);
-        }
-    }
-
-    private void validateExtAuthCodeParameters(String authorizationCode, String state, String kkAppRedirectUri) {
-        if (StringUtils.isEmpty(authorizationCode)) {
-            throw new AccessKeeperException(ErrorCodes.EXTAUTH_MISSING_CODE);
-        }
-        if (StringUtils.isEmpty(state)) {
-            throw new AccessKeeperException(ErrorCodes.EXTAUTH_MISSING_STATE);
-        }
-        if (StringUtils.isEmpty(kkAppRedirectUri)) {
-            throw new AccessKeeperException(ErrorCodes.EXTAUTH_MISSING_KKA_REDIRECT_URI);
-        }
-
-        if (authorizationCode.length() > MAX_LENGTH_AUTH_CODE_SEK) {
-            LOG.warn("sek auth_code is invalid");
-            throw new AccessKeeperException(ErrorCodes.EXTAUTH_INVALID_CODE);
-        }
-        if (state.length() != 32 || !state.matches("\\p{XDigit}+")) {
-            LOG.warn("state is invalid");
-            throw new AccessKeeperException(ErrorCodes.EXTAUTH_INVALID_STATE);
-        }
-        if (kkAppRedirectUri.length() > MAX_LENGTH_REDIRECT_URI) {
-            throw new AccessKeeperException(ErrorCodes.EXTAUTH_INVALID_KKA_REDIRECT_URI);
-        }
-        try {
-            new URI(kkAppRedirectUri);
-        }
-        catch (URISyntaxException e) {
-            throw new AccessKeeperException(ErrorCodes.EXTAUTH_INVALID_KKA_REDIRECT_URI, e);
         }
     }
 
@@ -724,9 +604,9 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         return ssoClaims;
     }
 
-    private JwtClaims createSsoTokenFromExtIdToken(long now, JwtClaims authCodeClaims) {
+    private JwtClaims createSsoTokenFromFedIdToken(long now, JwtClaims authCodeClaims) {
         JwtClaims ssoClaims = createSsoToken(now, authCodeClaims);
-        ssoClaims.setClaim(ClaimUtils.SSO_GRANT_TYPE, ClaimUtils.SSO_GRANT_TYPE_EXTTOKEN);
+        ssoClaims.setClaim(ClaimUtils.SSO_GRANT_TYPE, ClaimUtils.SSO_GRANT_TYPE_FEDTOKEN);
         return ssoClaims;
     }
 
@@ -819,8 +699,8 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         LogTool.setSessionId(sessionId);
         LOG.info("Created session");
 
-        ExtSessionEntity sessionEntity = saveSessionEntity(null, idpIss, clientId, appState, appRedirectUri, scope, appCodeChallenge, appNonce, sessionId);
-        String requestUri = extParService.sendParRequest(entityStatementDTO, sessionEntity);
+        ExtSessionEntity sessionEntity = saveSessionEntity(idpIss, clientId, appState, appRedirectUri, scope, appCodeChallenge, appNonce, sessionId);
+        String requestUri = extParService.sendParRequest(entityStatementDTO, sessionEntity, appRedirectUri);
 
         String authEndpointUrl = entityStatementDTO.getAuthorizationEndpoint();
         String issuer = configService.getIssuer(RequestSource.INTERNET);
@@ -880,7 +760,7 @@ public class AuthorizationServiceImpl implements AuthorizationService {
             EntityStatementDTO entityStatement = entityStatementSynchronizationService.getEntityStatementCache(session.getIdpIss());
 
             // @AFO: A_23049 - Abruf des ID-Tokens
-            String idToken = extAuthCodeService.redeemFedAuthCode(entityStatement, authorizationCode, session.getIdpCodeVerifier());
+            String idToken = extAuthCodeService.redeemFedAuthCode(entityStatement, authorizationCode, session.getIdpCodeVerifier(), session.getClientRedirectUri());
             LOG.info("Received id_token from federation idp [state={}]", state);
 
             Map<String, Object> idTokenValidationContext = new HashMap<>();
@@ -893,7 +773,15 @@ public class AuthorizationServiceImpl implements AuthorizationService {
             JwtClaims authCodeClaims = createAuthCode(authTime, authTime, getFdScope(sessionClaims), sessionClaims, federationClaims,
                 Collections.singletonList(OAuth2Constants.AMR_MULTI_FACTOR_AUTH));
 
-            return new RedeemedChallengeDTO(null, authCodeStrategy.toToken(authCodeClaims), session.getClientRedirectUri(), session.getClientState());
+            Client client = configService.getClientById(session.getClientId());
+            String ssoToken = null;
+            if (client.isNeedsSsoToken()) {
+                JwtClaims ssoClaims = createSsoTokenFromFedIdToken(authTime, authCodeClaims);
+                // @AFO: A_20696 - Verschlüsselung des "SSO_TOKEN"
+                ssoToken = ssoStrategy.toToken(ssoClaims);
+            }
+
+            return new RedeemedChallengeDTO(ssoToken, authCodeStrategy.toToken(authCodeClaims), session.getClientRedirectUri(), session.getClientState());
         }
         finally {
             sessionStorage.destroySession(state);
@@ -918,6 +806,7 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         }
         if (idTokenClaims.containsProperty(ClaimUtils.URN_ORGANIZATION)) {
             cardClaims.put(ClaimUtils.ORG_NAME, idTokenClaims.getStringProperty(ClaimUtils.URN_ORGANIZATION));
+            cardClaims.put(ClaimUtils.ORG_IK_NUMBER, idTokenClaims.getStringProperty(ClaimUtils.URN_ORGANIZATION));
         }
         if (idTokenClaims.containsProperty(ClaimUtils.URN_ID)) {
             cardClaims.put(ClaimUtils.ID_NUMBER, idTokenClaims.getStringProperty(ClaimUtils.URN_ID));

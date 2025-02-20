@@ -5,16 +5,10 @@
  */
 package com.rise_world.gematik.accesskeeper.server.service;
 
-import com.fasterxml.jackson.jaxrs.json.JacksonJsonProvider;
-import com.rise_world.gematik.accesskeeper.common.OAuth2Constants;
 import com.rise_world.gematik.accesskeeper.common.exception.AccessKeeperException;
 import com.rise_world.gematik.accesskeeper.common.exception.ErrorCodes;
-import com.rise_world.gematik.accesskeeper.common.service.PushedAuthEndpoint;
 import com.rise_world.gematik.accesskeeper.common.util.LogTool;
-import com.rise_world.gematik.accesskeeper.common.util.LoggingInvocationHandler;
-import com.rise_world.gematik.accesskeeper.common.util.TlsUtils;
 import com.rise_world.gematik.accesskeeper.server.dto.EntityStatementDTO;
-import com.rise_world.gematik.accesskeeper.server.dto.PARResponse;
 import com.rise_world.gematik.accesskeeper.server.dto.RequestSource;
 import com.rise_world.gematik.accesskeeper.server.entity.ExtSessionEntity;
 import com.rise_world.gematik.accesskeeper.server.util.PkceUtils;
@@ -22,27 +16,16 @@ import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.cxf.jaxrs.client.Client;
-import org.apache.cxf.jaxrs.client.ClientConfiguration;
-import org.apache.cxf.jaxrs.client.JAXRSClientFactory;
-import org.apache.cxf.jaxrs.client.WebClient;
-import org.apache.cxf.transport.http.HTTPConduit;
-import org.apache.cxf.transports.http.configuration.HTTPClientPolicy;
+import org.apache.hc.client5.http.ConnectTimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import javax.ws.rs.ProcessingException;
-import javax.ws.rs.core.Response;
 import java.net.ConnectException;
 import java.net.NoRouteToHostException;
-import java.net.SocketTimeoutException;
+import java.net.URI;
 import java.net.UnknownHostException;
-import java.util.Collections;
-
-import static com.rise_world.gematik.accesskeeper.server.configuration.IdpConstants.USER_AGENT;
 
 @Service
 public class ExtParService {
@@ -51,29 +34,21 @@ public class ExtParService {
 
     private static final int MAX_LENGTH_REQUEST_URI = 2000;
 
-    private JacksonJsonProvider jacksonJsonProvider;
-    private SelfSignedCertificateService selfSignedCertificateService;
-    private CircuitBreakerRegistry circuitBreakerRegistry;
-    private ConfigService configService;
-    private int sektorIdpConnectionTimeout;
-    private int sektorIdpReceiveTimeout;
-    private int maxRequestUriExpiry;
 
-    @Autowired
-    public ExtParService(JacksonJsonProvider jacksonJsonProvider,
-                         SelfSignedCertificateService selfSignedCertificateService,
-                         CircuitBreakerRegistry circuitBreakerRegistry,
+    private final CircuitBreakerRegistry circuitBreakerRegistry;
+    private final ConfigService configService;
+    private final int maxRequestUriExpiry;
+    private final PushedAuthClient client;
+
+    public ExtParService(CircuitBreakerRegistry circuitBreakerRegistry,
                          ConfigService configService,
-                         @Value("${sektorIdp.connection.timeout}") int sektorIdpConnectionTimeout,
-                         @Value("${sektorIdp.token.receive.timeout}") int sektorIdpReceiveTimeout,
-                         @Value("${federation.maxRequestUriExpiry:600}") int maxRequestUriExpiry) {
-        this.jacksonJsonProvider = jacksonJsonProvider;
-        this.selfSignedCertificateService = selfSignedCertificateService;
+                         @Value("${federation.maxRequestUriExpiry:600}") int maxRequestUriExpiry,
+                         PushedAuthClient pushedAuthClient) {
+
         this.circuitBreakerRegistry = circuitBreakerRegistry;
         this.configService = configService;
-        this.sektorIdpConnectionTimeout = sektorIdpConnectionTimeout;
-        this.sektorIdpReceiveTimeout = sektorIdpReceiveTimeout;
         this.maxRequestUriExpiry = maxRequestUriExpiry;
+        this.client = pushedAuthClient;
     }
 
     /**
@@ -81,66 +56,53 @@ public class ExtParService {
      *
      * @param entityStatementDTO the entity statement of the remote IDP
      * @param sessionEntity      the persisted auth session parameters
+     * @param appRedirectUri     the redirect_uri from the app request
      * @return the request uri from the PAR response
      */
-    public String sendParRequest(EntityStatementDTO entityStatementDTO, ExtSessionEntity sessionEntity) {
+    public String sendParRequest(EntityStatementDTO entityStatementDTO, ExtSessionEntity sessionEntity, String appRedirectUri) {
         LogTool.setPAREndpoint(entityStatementDTO.getPushedAuthorizationRequestEndpoint());
-        PushedAuthEndpoint client = createClient(entityStatementDTO.getPushedAuthorizationRequestEndpoint());
         CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker(entityStatementDTO.getIssuer());
 
         String issuer = configService.getIssuer(RequestSource.INTERNET);
 
-        Response response;
+        PushedAuthResponse response;
         try {
-            // @AFO: A_23687 - befüllen der Parameter laut Anforderung
-            response = circuitBreaker.executeCallable(() -> client.pushedAuthorizationRequest(issuer,
+            response = circuitBreaker.executeCallable(() -> client.send(URI.create(entityStatementDTO.getPushedAuthorizationRequestEndpoint()),
+                issuer,
                 sessionEntity.getState(),
-                issuer + "/fedauth",
+                appRedirectUri,
                 PkceUtils.createCodeChallenge(sessionEntity.getIdpCodeVerifier()),
-                OAuth2Constants.PKCE_METHOD_S256,
-                OAuth2Constants.RESPONSE_TYPE_CODE,
-                sessionEntity.getIdpNonce(),
-                "openid urn:telematik:display_name urn:telematik:versicherter",
-                OAuth2Constants.ACR_LOA_HIGH,
-                OAuth2Constants.CLIENT_ASSERTION_SELFSIGNED));
+                sessionEntity.getIdpNonce()
+            ));
         }
         catch (CallNotPermittedException e) {
             LOG.warn("Remote IDP '{}' call was not permitted due to previous failures", entityStatementDTO.getIssuer());
             throw new AccessKeeperException(ErrorCodes.FEDAUTH_IDP_NOT_AVAILABLE, e);
         }
-        catch (ProcessingException e) {
+        catch (ConnectTimeoutException | ConnectException | NoRouteToHostException | UnknownHostException e) {
             // handle timeout when remote service not available
-            if ((e.getCause() instanceof SocketTimeoutException) || (e.getCause() instanceof ConnectException) ||
-                (e.getCause() instanceof NoRouteToHostException) || (e.getCause() instanceof UnknownHostException)) {
-                throw new AccessKeeperException(ErrorCodes.FEDAUTH_PAR_FAILED, e);
-            }
-            else {
-                throw e;
-            }
+            throw new AccessKeeperException(ErrorCodes.FEDAUTH_PAR_FAILED, e);
         }
         catch (Exception e) {
             LOG.error("Unexpected error during PAR. Remote IDP: '{}'.", entityStatementDTO.getIssuer());
             throw new AccessKeeperException(ErrorCodes.FEDAUTH_PAR_FAILED, e);
         }
-        try {
-            // @AFO: A_23688 -  Authorization Request als Client an den zugeh&ouml;rigen sektoralen Identity Provider
-            PARResponse parResponse = response.readEntity(PARResponse.class);
-            validateParResponse(entityStatementDTO.getIssuer(), response, parResponse);
-            return parResponse.getRequestUri();
-        }
-        catch (ProcessingException e) {
-            LOG.warn("PAR to {} failed with error {}", entityStatementDTO.getIssuer(), response.readEntity(String.class));
-            throw new AccessKeeperException(ErrorCodes.FEDAUTH_PAR_FAILED, e);
-        }
+
+        // @AFO: A_23688 -  Authorization Request als Client an den zugeh&ouml;rigen sektoralen Identity Provider
+        validateParResponse(entityStatementDTO.getIssuer(), response);
+        return response.parResponse().getRequestUri();
     }
 
-    private void validateParResponse(String idpIss, Response response, PARResponse parResponse) {
-        if ((response.getStatus() == 400 || response.getStatus() == 401)
+    private void validateParResponse(String idpIss, PushedAuthResponse response) {
+
+        var parResponse = response.parResponse();
+
+        if ((response.status() == 400 || response.status() == 401)
             && ("invalid_client".equals(parResponse.getError()) || "unauthorized_client".equals(parResponse.getError()))) {
             LOG.error("PAR to {} failed with error {}:{}", idpIss, parResponse.getError(), parResponse.getErrorDescription());
             throw new AccessKeeperException(ErrorCodes.FEDAUTH_IDP_NOT_REGISTERED);
         }
-        else if (response.getStatus() != 201) {
+        if (response.status() != 201) {
             LOG.error("PAR to {} failed with error {}:{}", idpIss, parResponse.getError(), parResponse.getErrorDescription());
             throw new AccessKeeperException(ErrorCodes.FEDAUTH_PAR_FAILED);
         }
@@ -158,23 +120,4 @@ public class ExtParService {
         }
     }
 
-    protected PushedAuthEndpoint createClient(String endpointUrl) {
-        PushedAuthEndpoint parEndpoint = JAXRSClientFactory.create(endpointUrl, PushedAuthEndpoint.class,
-            Collections.singletonList(jacksonJsonProvider), false);
-
-        Client restClient = WebClient.client(parEndpoint);
-        ClientConfiguration config = WebClient.getConfig(restClient);
-        config.getResponseContext().put("buffer.proxy.response", Boolean.TRUE); // GEMIDP-1244 prevent connection leaks
-
-        HTTPConduit conduit = config.getHttpConduit();
-        conduit.setTlsClientParameters(TlsUtils.createTLSClientParameters());
-        selfSignedCertificateService.secureWebClient(restClient);
-        HTTPClientPolicy httpClientPolicy = conduit.getClient();
-        httpClientPolicy.setBrowserType(USER_AGENT);
-        // @AFO: A_23691 - Request Timeouts setzen
-        httpClientPolicy.setConnectionTimeout(sektorIdpConnectionTimeout);
-        httpClientPolicy.setReceiveTimeout(sektorIdpReceiveTimeout);
-
-        return LoggingInvocationHandler.createLoggingProxy("PushedAuthEndpoint", PushedAuthEndpoint.class, parEndpoint);
-    }
 }

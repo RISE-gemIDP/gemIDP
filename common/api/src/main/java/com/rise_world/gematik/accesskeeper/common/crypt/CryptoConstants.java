@@ -13,6 +13,7 @@ public class CryptoConstants {
     public static final String SIG_ALG_BRAINPOOL_P256_R1 = "BP256R1";
     public static final String JWE_BRAINPOOL_CURVE = "BP-256";
     public static final String CURVE_SEC_P256_R1 = "secp256r1";
+    public static final String CURVE_SEC_P384_R1 = "secp384r1";
 
     private CryptoConstants() {
         // avoid instantiation

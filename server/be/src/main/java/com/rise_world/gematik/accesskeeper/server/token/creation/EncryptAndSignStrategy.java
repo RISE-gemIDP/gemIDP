@@ -9,7 +9,6 @@ import com.rise_world.gematik.accesskeeper.common.exception.AccessKeeperExceptio
 import com.rise_world.gematik.accesskeeper.common.exception.ErrorCodes;
 import com.rise_world.gematik.accesskeeper.common.token.ClaimUtils;
 import com.rise_world.gematik.accesskeeper.common.util.JwtJsonUtils;
-import org.apache.commons.lang3.Validate;
 import org.apache.cxf.rs.security.jose.common.JoseType;
 import org.apache.cxf.rs.security.jose.jwa.ContentAlgorithm;
 import org.apache.cxf.rs.security.jose.jwe.JweCompactProducer;
@@ -21,6 +20,7 @@ import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
 import org.apache.cxf.rs.security.jose.jwt.JwtConstants;
 
 import java.util.Collections;
+import java.util.Objects;
 
 public class EncryptAndSignStrategy extends SignStrategy {
 
@@ -32,7 +32,7 @@ public class EncryptAndSignStrategy extends SignStrategy {
 
     public EncryptAndSignStrategy(JweEncryptionProvider provider, JwsSignatureProvider signer, String kid, String type) {
         super(signer, kid, type);
-        this.encryption = Validate.notNull(provider);
+        this.encryption = Objects.requireNonNull(provider);
     }
 
     @Override

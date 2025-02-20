@@ -41,6 +41,7 @@ import static com.rise_world.gematik.accesskeeper.fedmaster.exception.Federation
 import static com.rise_world.gematik.accesskeeper.fedmaster.exception.FederationMasterErrorCodes.FED_INVALID_SUB;
 import static com.rise_world.gematik.accesskeeper.fedmaster.exception.FederationMasterErrorCodes.FED_UNKNOWN_ISS;
 import static com.rise_world.gematik.accesskeeper.fedmaster.exception.FederationMasterErrorCodes.FED_UNKNOWN_SUB;
+import static com.rise_world.gematik.accesskeeper.fedmaster.service.EntityStatementMetadataProvider.forParticipantType;
 import static com.rise_world.gematik.accesskeeper.fedmaster.token.EntityStatementCreationStrategy.TYPE_IDP_LIST_JWT;
 
 @Service
@@ -55,19 +56,23 @@ public class EntityStatementServiceImpl implements EntityStatementService {
     private final KeyProvider keyProvider;
     private final ParticipantRepository participantRepository;
     private final PublicKeyRepository keyRepository;
+    private final List<EntityStatementMetadataProvider> metadataProviders;
+
 
     public EntityStatementServiceImpl(FederationMasterConfiguration config,
                                       Clock clock,
                                       EntityStatementCreationStrategy tokenStrategy,
                                       KeyProvider keyProvider,
                                       ParticipantRepository participantRepository,
-                                      PublicKeyRepository keyRepository) {
+                                      PublicKeyRepository keyRepository,
+                                      List<EntityStatementMetadataProvider> metadataProviders) {
         this.config = config;
         this.clock = clock;
         this.tokenStrategy = tokenStrategy;
         this.keyProvider = keyProvider;
         this.participantRepository = participantRepository;
         this.keyRepository = keyRepository;
+        this.metadataProviders = metadataProviders;
     }
 
     @Override
@@ -124,14 +129,15 @@ public class EntityStatementServiceImpl implements EntityStatementService {
             return fetchMasterEntityStatement();
         }
 
-        ParticipantDto entity = this.participantRepository.findByIdentifier(searchSub).orElseThrow(() -> new AccessKeeperException(FED_UNKNOWN_SUB));
+        ParticipantDto entity = this.participantRepository.findByIdentifier(searchSub)
+            .orElseThrow(() -> new AccessKeeperException(FED_UNKNOWN_SUB));
         List<ParticipantKeyDto> keys = keyRepository.findByParticipant(entity.getId());
 
-        if (!keys.isEmpty()) {
-            return toEntityStatement(entity, aud, keys);
+        if (keys.isEmpty()) {
+            throw new AccessKeeperException(FED_UNKNOWN_SUB);
         }
 
-        throw new AccessKeeperException(FED_UNKNOWN_SUB);
+        return toEntityStatement(entity, aud, keys);
     }
 
     private static void validateUri(String expectedUri, ErrorMessage errorMessage) {
@@ -219,8 +225,16 @@ public class EntityStatementServiceImpl implements EntityStatementService {
             keyList.add(JwtUtils.toJsonWebKey(key));
         }
         claims.setClaim("jwks", new JsonWebKeys(keyList));
-        claims.setClaim("metadata", entity.getType().createDefaultMetadata());
+
+        var metadata = metadataProviders.stream()
+            .filter(forParticipantType(entity.getType()))
+            .findFirst()
+            .map(provider -> provider.metadata(entity))
+            .orElseGet(JwtClaims::new);
+
+        claims.setClaim("metadata", metadata);
 
         return tokenStrategy.toToken(claims);
     }
+
 }

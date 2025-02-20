@@ -12,9 +12,7 @@ import com.rise_world.gematik.accesskeeper.server.model.Client;
 import com.rise_world.gematik.accesskeeper.server.model.Fachdienst;
 import com.rise_world.gematik.accesskeeper.server.model.InfoModel;
 import com.rise_world.gematik.accesskeeper.server.model.Scope;
-import com.rise_world.gematik.accesskeeper.server.model.SektorApp;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
@@ -50,12 +48,33 @@ public interface ConfigService {
     InfoModel getParsedInfoModel();
 
     /**
-     * The token issuer
+     * The configured token issuer
      *
      * @param requestSource ti or internet
      * @return the configured token issuer
      */
     String getIssuer(RequestSource requestSource);
+
+    /**
+     * The configured token issuers (TI and internet)
+     *
+     * @return the set of configured issuer identifiers
+     */
+    Set<String> getIssuers();
+
+    /**
+     * The configured eRp authserver client name
+     *
+     * @return the configured client name
+     */
+    String getAuthServerClientName();
+
+    /**
+     * The configured eRp authserver organization name
+     *
+     * @return the configured organization name
+     */
+    String getAuthServerOrganizationName();
 
     /**
      * The pairing endpoint (the public endpoint!)
@@ -142,17 +161,9 @@ public interface ConfigService {
     List<String> getFachdienstScopes();
 
     /**
-     * Get a sektor application by id
+     * Returns all validRedirectUris that should be present in the entity statement of the AuthServer.
      *
-     * @param appId the unique sektor application id
-     * @return the sektor application or {@code null}
+     * @return the set of redirect uris
      */
-    SektorApp getSektorAppById(String appId);
-
-    /**
-     * Returns all configured sektor applications
-     *
-     * @return the list of all configured sektor applications
-     */
-    Collection<SektorApp> getSektorApps();
+    Set<String> getRedirectUrisForEntityStatement();
 }

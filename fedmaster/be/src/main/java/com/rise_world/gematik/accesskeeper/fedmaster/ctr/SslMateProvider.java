@@ -5,7 +5,7 @@
  */
 package com.rise_world.gematik.accesskeeper.fedmaster.ctr;
 
-import com.fasterxml.jackson.jaxrs.json.JacksonJsonProvider;
+import com.fasterxml.jackson.jakarta.rs.json.JacksonJsonProvider;
 import com.rise_world.gematik.accesskeeper.common.util.LoggingInvocationHandler;
 import com.rise_world.gematik.accesskeeper.fedmaster.dto.CtRecordDto;
 import com.rise_world.gematik.accesskeeper.sslmate.CertificateTransparencyRecord;
@@ -20,13 +20,13 @@ import org.apache.cxf.jaxrs.client.JAXRSClientFactory;
 import org.apache.cxf.jaxrs.client.WebClient;
 import org.apache.cxf.transport.http.HTTPConduit;
 import org.apache.cxf.transports.http.configuration.HTTPClientPolicy;
-import org.apache.http.HttpStatus;
+import org.apache.hc.core5.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import javax.ws.rs.ProcessingException;
-import javax.ws.rs.WebApplicationException;
+import jakarta.ws.rs.ProcessingException;
+import jakarta.ws.rs.WebApplicationException;
 import java.net.ConnectException;
 import java.net.NoRouteToHostException;
 import java.net.SocketTimeoutException;
@@ -48,13 +48,16 @@ public class SslMateProvider implements CertificateTransparencyProvider {
     private final JacksonJsonProvider jacksonJsonProvider;
     private final SslMateConfiguration configuration;
     private final CircuitBreakerRegistry circuitBreakerRegistry;
+    private final SslMateRateLimiter rateLimiter;
 
     public SslMateProvider(SslMateConfiguration configuration,
                            JacksonJsonProvider jacksonJsonProvider,
-                           CircuitBreakerRegistry circuitBreakerRegistry) {
+                           CircuitBreakerRegistry circuitBreakerRegistry,
+                           SslMateRateLimiter rateLimiter) {
         this.configuration = configuration;
         this.jacksonJsonProvider = jacksonJsonProvider;
         this.circuitBreakerRegistry = circuitBreakerRegistry;
+        this.rateLimiter = rateLimiter;
     }
 
     @Override
@@ -86,6 +89,9 @@ public class SslMateProvider implements CertificateTransparencyProvider {
         try {
             do {
                 String after = records.isEmpty() ? null : records.getLast().id();
+
+                rateLimiter.acquire();
+
                 List<CertificateTransparencyRecord> result = circuitBreaker.executeCallable(() -> client.issuances(domain,
                     false,
                     true,
@@ -127,6 +133,10 @@ public class SslMateProvider implements CertificateTransparencyProvider {
                 LOG.error("Unexpected error on accessing SslMate.", e);
                 throw new CertificateTransparencyProviderException("SslMate could not be accessed", e);
             }
+        }
+        catch (RequestLimitExceededException e) {
+            // we want to rethrow the exception to give the caller a chance to decide how to deal with it
+            throw e;
         }
         catch (Exception e) {
             throw new CertificateTransparencyProviderException("SslMate could not be accessed", e);

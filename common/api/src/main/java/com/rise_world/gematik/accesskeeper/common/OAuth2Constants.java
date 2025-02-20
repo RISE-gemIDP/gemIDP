@@ -22,12 +22,12 @@ public class OAuth2Constants {
     public static final String ACR_LOA_HIGH = "gematik-ehealth-loa-high";
     public static final String ACR_LOA_SUBSTENTIAL = "gematik-ehealth-loa-substantial";
 
-    public static final String EXTERNAL_CLIENT_ID = "zentraler-idp-dienst";
-
     // amr methods
     public static final String AMR_MULTI_FACTOR_AUTH = "mfa";
     public static final String AMR_SMART_CARD = "sc";
     public static final String AMR_PIN = "pin";
+    public static final String AMR_MEW = "urn:telematik:auth:mEW";
+    public static final String AMR_SSO = "urn:telematik:auth:sso";
 
     private OAuth2Constants() {
     }

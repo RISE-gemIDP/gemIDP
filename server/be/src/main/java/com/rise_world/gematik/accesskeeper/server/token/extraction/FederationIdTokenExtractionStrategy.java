@@ -19,6 +19,7 @@ import com.rise_world.gematik.accesskeeper.server.dto.EntityStatementDTO;
 import com.rise_world.gematik.accesskeeper.server.dto.RequestSource;
 import com.rise_world.gematik.accesskeeper.server.entity.ExtSessionEntity;
 import com.rise_world.gematik.accesskeeper.server.service.ConfigService;
+import com.rise_world.gematik.accesskeeper.server.dto.ReloadEntityStatementEvent;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.cxf.rs.security.jose.jwa.SignatureAlgorithm;
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
@@ -31,16 +32,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 import java.security.PublicKey;
 import java.time.Clock;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
+import static com.rise_world.gematik.accesskeeper.common.token.ClaimUtils.AUTH_CTX;
+import static com.rise_world.gematik.accesskeeper.common.token.ClaimUtils.AUTH_METHOD;
 import static com.rise_world.gematik.accesskeeper.common.token.ClaimUtils.KVNR_PATTERN;
 import static com.rise_world.gematik.accesskeeper.common.token.ClaimUtils.MAX_LENGTH_DISPLAY_NAME;
 import static com.rise_world.gematik.accesskeeper.common.token.ClaimUtils.MAX_LENGTH_NAME;
+import static java.util.Objects.isNull;
 
 @Component
 public class FederationIdTokenExtractionStrategy extends AbstractClaimExtractionStrategy {
@@ -50,18 +56,23 @@ public class FederationIdTokenExtractionStrategy extends AbstractClaimExtraction
 
     private static final Logger LOG = LoggerFactory.getLogger(FederationIdTokenExtractionStrategy.class);
 
+    private static final Set<String> ALLOWED_SUBSTANTIAL_AMR = Set.of(OAuth2Constants.AMR_MEW, OAuth2Constants.AMR_SSO);
+
     private final ConfigService configService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Autowired
     public FederationIdTokenExtractionStrategy(Clock clock,
                                                @Value("${token.iat.leeway}") long iatLeeway,
                                                DecryptionProviderFactory decryptionFactory,
-                                               ConfigService configService) {
+                                               ConfigService configService,
+                                               ApplicationEventPublisher eventPublisher) {
         // @AFO: A_23049 - Prüfen der zeitlichen Gültigkeit mittels TokenExpiry und IssuedAtValidation
         super(new FedIdpIdTokenParser(decryptionFactory.createDecryptionProvider(TokenType.SEKTORAL_ID_TOKEN)),
             new TokenExpiry(clock, ErrorCodes.FEDAUTH_INVALID_ID_TOKEN, ErrorCodes.FEDAUTH_INVALID_ID_TOKEN),
             new IssuedAtValidation(clock, ErrorCodes.FEDAUTH_INVALID_ID_TOKEN, iatLeeway));
         this.configService = configService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -99,6 +110,7 @@ public class FederationIdTokenExtractionStrategy extends AbstractClaimExtraction
 
         if (key == null) {
             LOG.warn("Signature key is unknown [idp_iss={}] [kid={}]", entityStatementDTO.getIssuer(), keyId);
+            eventPublisher.publishEvent(new ReloadEntityStatementEvent(entityStatementDTO.getIssuer()));
             throw new AccessKeeperException(ErrorCodes.FEDAUTH_MISSING_SIG_KEY);
         }
 
@@ -131,9 +143,16 @@ public class FederationIdTokenExtractionStrategy extends AbstractClaimExtraction
         }
 
         // we don't allow multiple aud entries (our client_id is the only trusted aud)
+        String issuer = configService.getIssuer(RequestSource.INTERNET);
         final List<String> audiences = idToken.getAudiences();
-        if (audiences.size() != 1 || !configService.getIssuer(RequestSource.INTERNET).equals(audiences.get(0))) {
+        if (audiences.size() != 1 || !issuer.equals(audiences.get(0))) {
             LOG.warn("Audience of id token does not match expected value [idp_iss={}] [aud_received={}]", entityStatementDTO.getIssuer(), audiences);
+            throw new AccessKeeperException(ErrorCodes.FEDAUTH_INVALID_ID_TOKEN);
+        }
+
+        final String azp = idToken.getStringProperty("azp");
+            if (azp != null && !issuer.equals(azp)) {
+            LOG.warn("azp of id token is present but doesn't contain our client_id [sek_idp_id={}] [azp_received={}]", entityStatementDTO.getIssuer(), azp);
             throw new AccessKeeperException(ErrorCodes.FEDAUTH_INVALID_ID_TOKEN);
         }
 
@@ -143,11 +162,33 @@ public class FederationIdTokenExtractionStrategy extends AbstractClaimExtraction
             throw new AccessKeeperException(ErrorCodes.FEDAUTH_INVALID_ID_TOKEN);
         }
 
-        final String acr = idToken.getStringProperty("acr");
-        if (!OAuth2Constants.ACR_LOA_HIGH.equals(acr) && !OAuth2Constants.ACR_LOA_SUBSTENTIAL.equals(acr)) {
-            LOG.warn("acr of id token does not match expected value [idp_iss={}] [acr_received={}]", entityStatementDTO.getIssuer(), acr);
+        final String acr = idToken.getStringProperty(AUTH_CTX);
+        if (!(OAuth2Constants.ACR_LOA_HIGH.equals(acr) || (OAuth2Constants.ACR_LOA_SUBSTENTIAL.equals(acr) && amrAllowsSubstantial(idToken)))) {
+            LOG.warn("acr of id token does not match expected value [idp_iss={}] [acr_received={}] [amr_received={}]",
+                entityStatementDTO.getIssuer(),
+                acr,
+                idToken.getClaim(AUTH_METHOD));
             throw new AccessKeeperException(ErrorCodes.FEDAUTH_INVALID_ID_TOKEN);
         }
+    }
+
+
+    private static boolean amrAllowsSubstantial(JwtClaims idToken) {
+        var property = idToken.getProperty(AUTH_METHOD);
+        if (isNull(property)) {
+            return false;
+        }
+
+        if (property instanceof List<?> list) {
+            return list.stream()
+                .anyMatch(FederationIdTokenExtractionStrategy::amrEntryAllowsSubstantial);
+        }
+
+        return amrEntryAllowsSubstantial(property);
+    }
+
+    private static boolean amrEntryAllowsSubstantial(Object entry) {
+        return entry instanceof String amrValue && ALLOWED_SUBSTANTIAL_AMR.contains(amrValue);
     }
 
     private void validateGematikClaims(JwtClaims idToken) {

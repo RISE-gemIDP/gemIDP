@@ -169,32 +169,22 @@ public class KMSProviderFactory implements EncryptionProviderFactory, Decryption
             throw new IllegalArgumentException();
         }
 
-        switch (endpoint) {
-            case AUTH:
-            case TOKEN:
-                return KeyType.IDP;
-            case DISC:
-                return KeyType.DISC;
-            case EXT_AUTH:
-                return KeyType.SEK;
-            case FEDMASTER:
-                return KeyType.FED;
-            default:
-                throw new IllegalArgumentException();
-        }
+        return switch (endpoint) {
+            case AUTH, TOKEN -> KeyType.IDP;
+            case DISC -> KeyType.DISC;
+            case EXT_AUTH -> KeyType.SEK;
+            case FEDMASTER -> KeyType.FED;
+            default -> throw new IllegalArgumentException();
+        };
     }
 
     private KeyType toKeyType(String kid) {
-        switch (kid) {
-            case KeyConstants.PUK_IDP_SIG:
-                return KeyType.IDP;
-            case KeyConstants.PUK_DISC_SIG:
-                return KeyType.DISC;
-            case KeyConstants.PUK_IDP_SIG_SEK:
-                return KeyType.SEK;
-            default:
-                throw new IllegalArgumentException(String.format("KeyIdentifier %s is invalid", kid));
-        }
+        return switch (kid) {
+            case KeyConstants.PUK_IDP_SIG -> KeyType.IDP;
+            case KeyConstants.PUK_DISC_SIG -> KeyType.DISC;
+            case KeyConstants.PUK_IDP_SIG_SEK -> KeyType.SEK;
+            default -> throw new IllegalArgumentException(String.format("KeyIdentifier %s is invalid", kid));
+        };
     }
 
     @Override

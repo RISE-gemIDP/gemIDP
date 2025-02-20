@@ -17,8 +17,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.core.Response;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.core.Response;
 import java.net.URI;
 
 import static com.rise_world.gematik.accesskeeper.server.api.util.ParameterUtils.validateDuplicateClientIdRedirectUri;
@@ -67,7 +67,7 @@ public class FedAuthEndpointImpl implements FedAuthEndpoint {
     }
 
     @Override
-    // @AFO: A_23691 - AUTHORIZATION_CODE_IDP wird an der Schnittstelle angenommen
+    // @AFO: A_23691-01 - AUTHORIZATION_CODE_IDP wird an der Schnittstelle angenommen
     public Response finishFedAuthorization(String code, String state) {
         LOG.info("Received authcode for [state={}]", state);
 
@@ -78,6 +78,7 @@ public class FedAuthEndpointImpl implements FedAuthEndpoint {
 
         String redirectUri = new UrlBuilder(redeemedExtCode.getRedirectUri())
             .appendParameter("code", redeemedExtCode.getAuthCode())
+            .appendParameter("ssotoken", redeemedExtCode.getSsoToken())
             .appendState(redeemedExtCode.getState())
             .toString();
 

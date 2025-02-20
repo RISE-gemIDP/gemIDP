@@ -6,6 +6,7 @@
 package com.rise_world.gematik.accesskeeper.fedmaster.util;
 
 import com.rise_world.gematik.accesskeeper.fedmaster.dto.ParticipantDto;
+import com.rise_world.gematik.accesskeeper.fedmaster.schedule.CTRProvider;
 import net.logstash.logback.marker.LogstashMarker;
 
 import static net.logstash.logback.marker.Markers.append;
@@ -21,6 +22,7 @@ public class MarkerUtils {
     public static final String MEMBER_ID = "member_id";
     public static final String MEMBER_URI = "member_uri";
     public static final String ZIS_ASSIGNMENT_GROUP = "zis_assignment_group";
+    public static final String CTR_PROVIDER = "ctr_provider";
 
     private MarkerUtils() {
         // avoid instantiation
@@ -32,4 +34,7 @@ public class MarkerUtils {
             .and(append(ZIS_ASSIGNMENT_GROUP, participant.getZisGroup()));
     }
 
+    public static LogstashMarker ctrProvider(CTRProvider provider) {
+        return append(CTR_PROVIDER, provider.getId());
+    }
 }

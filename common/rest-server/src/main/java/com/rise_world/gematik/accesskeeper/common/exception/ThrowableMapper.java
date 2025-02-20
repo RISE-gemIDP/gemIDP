@@ -12,10 +12,11 @@ import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.ext.ExceptionMapper;
-import javax.ws.rs.ext.Provider;
+import jakarta.ws.rs.ClientErrorException;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.ext.ExceptionMapper;
+import jakarta.ws.rs.ext.Provider;
 import java.time.Clock;
 
 /**
@@ -36,6 +37,11 @@ public class ThrowableMapper implements ExceptionMapper<Throwable> {
 
     @Override
     public Response toResponse(Throwable throwable) {
+        // don't transform client errors to internal errors
+        if (throwable instanceof ClientErrorException c) {
+            return Response.status(c.getResponse().getStatus()).build();
+        }
+
         LOG.error("An unexpected error occured", throwable);
         final String requestId = MDC.get(LogTool.MDC_REQ_ID);
 
@@ -45,6 +51,7 @@ public class ThrowableMapper implements ExceptionMapper<Throwable> {
             // @AFO: A_20246_1 - mappen von allen internen Fehlern des IDP
             .header(PerfLogConstants.HEADER_PERF_DIENST_OPERATION, PerfLogConstants.IDP_PERF_FAILED)
             .header(PerfLogConstants.HEADER_PERF_ERRORCODE, PerfLogConstants.IDP_PERF_INTERNAL_IDP_ERROR)
+            .header(PerfLogConstants.HEADER_PERF_GEMATIKCODE, ErrorCodes.SERVER_ERROR.getGematikCode())
             .build();
     }
 }

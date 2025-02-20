@@ -10,6 +10,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 public abstract class JdbcRepository {
 
     public static final String COL_ID = "id";
+    public static final String COL_CREATED_BY = "created_by";
     public static final String COL_MODIFIED_AT = "modified_at";
     public static final String COL_MODIFIED_BY = "modified_by";
     public static final String MODIFICATION_VALUE = "SYS_FEDMASTER";

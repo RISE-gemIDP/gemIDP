@@ -72,6 +72,7 @@ public class SelfSignedCertificateService {
         this.mtlsKeys = new AtomicReference<>(new MtlsKeys(new KeyManager[]{}, new TrustManager[]{}, Collections.emptyList()));
     }
 
+    // @AFO: A_23692 - Laden und Filtern der mTLS Zertifikate
     @Scheduled(fixedDelayString = "${federation.mtls.timer.delay}")
     public void loadKeystore() {
         LOG.info("Reloading mTLS certificates");

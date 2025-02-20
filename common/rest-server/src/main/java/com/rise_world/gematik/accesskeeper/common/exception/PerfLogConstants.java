@@ -8,6 +8,7 @@ package com.rise_world.gematik.accesskeeper.common.exception;
 public class PerfLogConstants {
     public static final String HEADER_PERF_DIENST_OPERATION = "perf_dienst_operation";
     public static final String HEADER_PERF_ERRORCODE = "perf_errorcode";
+    public static final String HEADER_PERF_GEMATIKCODE = "perf_gematikcode";
 
     public static final String IDP_PERF_OCSP_OPERATION = "OCSP-Abfrage";
     public static final String IDP_PERF_OCSP_OPERATION_FAILED = IDP_PERF_OCSP_OPERATION + ".failed";

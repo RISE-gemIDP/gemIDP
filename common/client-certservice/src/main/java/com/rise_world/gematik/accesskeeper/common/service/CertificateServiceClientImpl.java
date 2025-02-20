@@ -5,12 +5,11 @@
  */
 package com.rise_world.gematik.accesskeeper.common.service;
 
-import com.rise_world.epa.certificate.api.rest.CertificateResource;
-import com.rise_world.epa.certificate.api.rest.model.CertStatus;
+import com.rise_world.epa.certificate.api.rest.api.CertificateNonQesApi;
 import com.rise_world.epa.certificate.api.rest.model.CertificateCheckRequest;
 import com.rise_world.epa.certificate.api.rest.model.CertificateCheckResponse;
-import com.rise_world.epa.certificate.api.rest.model.CheckType;
 import com.rise_world.epa.certificate.api.rest.model.ErrorMessage;
+import com.rise_world.epa.certificate.api.rest.model.ParsedOcspResponse;
 import com.rise_world.gematik.accesskeeper.common.exception.AccessKeeperException;
 import com.rise_world.gematik.accesskeeper.common.exception.CertificateServiceException;
 import com.rise_world.gematik.accesskeeper.common.exception.ErrorCodes;
@@ -20,12 +19,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import javax.ws.rs.ProcessingException;
-import javax.ws.rs.WebApplicationException;
+import jakarta.ws.rs.ProcessingException;
+import jakarta.ws.rs.WebApplicationException;
 import java.net.ConnectException;
 import java.net.NoRouteToHostException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
+import java.net.http.HttpTimeoutException;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Base64;
@@ -39,12 +39,12 @@ public class CertificateServiceClientImpl implements CertificateServiceClient {
     private static final List<String> POLICY_LIST = Arrays.asList(OidType.OID_C_CH_AUTH, OidType.OID_C_HP_AUTH, OidType.OID_C_HCI_AUTH);
     private static final int CERT_SERVICE_OCSP_NOT_AVAILABLE_CODE = 1032;
 
-    private final CertificateResource certificateResource;
-    private final int ocspGracePeriod;
+    private final CertificateNonQesApi certificateResource;
+    private final long ocspGracePeriod;
 
     @Autowired
-    public CertificateServiceClientImpl(CertificateResource certificateResource,
-                                        @Value("${certificateService.ocspGracePeriod}") int ocspGracePeriod) {
+    public CertificateServiceClientImpl(CertificateNonQesApi certificateResource,
+                                        @Value("${certificateService.ocspGracePeriod}") long ocspGracePeriod) {
         this.certificateResource = certificateResource;
         this.ocspGracePeriod = ocspGracePeriod;
     }
@@ -72,11 +72,11 @@ public class CertificateServiceClientImpl implements CertificateServiceClient {
 
         request.setIntendedKeyUsage(1); // digital signature
         request.setIntendedExtendedKeyUsage(Collections.singletonList("1.3.6.1.5.5.7.3.2")); //  id-kp-clientAuth
-        request.setAllowMissingExtendedKeyUsage(true);
+        request.setAllowMissingExtendedKeyUsage(Boolean.TRUE);
 
         request.setPolicyList(POLICY_LIST);
-        request.setCheckType(CheckType.OCSP);
-        request.setOfflineMode(false);
+        request.setCheckType(CertificateCheckRequest.CheckTypeEnum.OCSP);
+        request.setOfflineMode(Boolean.FALSE);
 
         request.setReferenceDate(referenceDate);
 
@@ -102,7 +102,7 @@ public class CertificateServiceClientImpl implements CertificateServiceClient {
 
             // CERT_REVOKED and CERT_UNKNOWN should also be present in CertificateCheckResponse#errors, but just in case
             // @AFO: A_20318 für nicht existente oder widerrufene Entitäten darf kein AUTH_CODE ausgestellt werden
-            if (response.getParsedOcspResponse().getCertStatus() != CertStatus.CERT_GOOD) {
+            if (!ParsedOcspResponse.CertStatusEnum.GOOD.value().equals(response.getParsedOcspResponse().getCertStatus())) {
                 // @AFO: A_4829 Bei Fehlerbehandlung Systemmeldungen ausgeben
                 LOG.warn("Invalid Cert status {}", response.getParsedOcspResponse().getCertStatus());
                 throw new AccessKeeperException(ErrorCodes.AUTH_INVALID_X509_CERT);
@@ -116,7 +116,8 @@ public class CertificateServiceClientImpl implements CertificateServiceClient {
         catch (ProcessingException e) {
             // handle timeout when certificate service not available
             if ((e.getCause() instanceof SocketTimeoutException) || (e.getCause() instanceof ConnectException) ||
-                (e.getCause() instanceof NoRouteToHostException) || (e.getCause() instanceof UnknownHostException)) {
+                (e.getCause() instanceof NoRouteToHostException) || (e.getCause() instanceof UnknownHostException) ||
+                 e.getCause() instanceof HttpTimeoutException) {
                 LOG.error("CertificateService is not available");
                 throw new AccessKeeperException(ErrorCodes.AUTH_OCSP_ERROR_NO_RESPONSE, e);
             }

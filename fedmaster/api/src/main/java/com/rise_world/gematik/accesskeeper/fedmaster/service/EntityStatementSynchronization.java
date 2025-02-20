@@ -21,8 +21,6 @@ public interface EntityStatementSynchronization {
     /**
      * Method to start synchronization of a specific entity statement
      * @param identifier    of the participant to be synced
-     * @param dataSync      data synchronization needed
-     * @param ctrCheck      certificate transparency check needed
      */
-    void synchronizeParticipant(Long identifier, boolean dataSync, boolean ctrCheck);
+    void synchronizeParticipant(Long identifier);
 }

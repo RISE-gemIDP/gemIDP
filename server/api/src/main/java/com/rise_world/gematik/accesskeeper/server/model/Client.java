@@ -15,6 +15,7 @@ public class Client {
     private String name;
     private Long tokenTimeout;
     private boolean needsSsoToken;
+    private boolean redirectUrisInES;
 
     private List<String> validRedirectUris;
 
@@ -48,6 +49,14 @@ public class Client {
 
     public void setNeedsSsoToken(boolean needsSsoToken) {
         this.needsSsoToken = needsSsoToken;
+    }
+
+    public boolean isRedirectUrisInES() {
+        return redirectUrisInES;
+    }
+
+    public void setRedirectUrisInES(boolean redirectUrisInES) {
+        this.redirectUrisInES = redirectUrisInES;
     }
 
     public List<String> getValidRedirectUris() {

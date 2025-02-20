@@ -16,6 +16,10 @@ public class InfoModel {
     private String issuerTi;
     @JsonProperty("issuer_internet")
     private String issuerInet;
+    @JsonProperty("auth_server_client_name")
+    private String authServerClientName;
+    @JsonProperty("auth_server_organization_name")
+    private String authServerOrganizationName;
 
     private String pairingEndpoint;
     private String salt;
@@ -27,8 +31,6 @@ public class InfoModel {
     @JsonProperty("public_clients")
     private List<Client> publicClients;
     private List<Fachdienst> fachdienste;
-    @JsonProperty("sektor_apps")
-    private List<SektorApp> sektorApps;
 
     public InfoModel() {
     }
@@ -36,13 +38,14 @@ public class InfoModel {
     public InfoModel(InfoModel src) {
         this.issuerTi = src.issuerTi;
         this.issuerInet = src.issuerInet;
+        this.authServerClientName = src.authServerClientName;
+        this.authServerOrganizationName = src.authServerOrganizationName;
         this.pairingEndpoint = src.pairingEndpoint;
         this.challengeExpires = src.challengeExpires;
         this.authCodeExpires = src.authCodeExpires;
         this.getScopes().addAll(src.getScopes());
         this.getPublicClients().addAll(src.getPublicClients());
         this.getFachdienste().addAll(src.getFachdienste());
-        this.getSektorApps().addAll(src.getSektorApps());
     }
 
     public String getIssuerTi() {
@@ -59,6 +62,22 @@ public class InfoModel {
 
     public void setIssuerInet(String issuerInet) {
         this.issuerInet = issuerInet;
+    }
+
+    public String getAuthServerClientName() {
+        return authServerClientName;
+    }
+
+    public void setAuthServerClientName(String authServerClientName) {
+        this.authServerClientName = authServerClientName;
+    }
+
+    public String getAuthServerOrganizationName() {
+        return authServerOrganizationName;
+    }
+
+    public void setAuthServerOrganizationName(String authServerOrganizationName) {
+        this.authServerOrganizationName = authServerOrganizationName;
     }
 
     public String getPairingEndpoint() {
@@ -141,21 +160,4 @@ public class InfoModel {
     public void setFachdienste(List<Fachdienst> fachdienste) {
         this.fachdienste = fachdienste;
     }
-
-    /**
-     * Returns the sektor idp list. If no sektor idps are configured, an empty list will be returned.
-     *
-     * @return the list of configured sektor idps
-     */
-    public List<SektorApp> getSektorApps() {
-        if (sektorApps == null) {
-            sektorApps = new ArrayList<>();
-        }
-        return sektorApps;
-    }
-
-    public void setSektorApps(List<SektorApp> sektorApps) {
-        this.sektorApps = sektorApps;
-    }
-
 }

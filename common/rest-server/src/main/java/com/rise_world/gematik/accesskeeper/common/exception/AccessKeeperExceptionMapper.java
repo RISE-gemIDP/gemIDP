@@ -6,16 +6,16 @@
 package com.rise_world.gematik.accesskeeper.common.exception;
 
 import com.rise_world.gematik.accesskeeper.common.util.LogTool;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.ext.ExceptionMapper;
+import jakarta.ws.rs.ext.Provider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.ext.ExceptionMapper;
-import javax.ws.rs.ext.Provider;
 import java.time.Clock;
 
 @Provider
@@ -24,7 +24,7 @@ public class AccessKeeperExceptionMapper implements ExceptionMapper<AccessKeeper
 
     private static final Logger LOG = LoggerFactory.getLogger(AccessKeeperExceptionMapper.class);
 
-    private Clock clock;
+    private final Clock clock;
 
     @Autowired
     public AccessKeeperExceptionMapper(Clock clock) {
@@ -49,16 +49,19 @@ public class AccessKeeperExceptionMapper implements ExceptionMapper<AccessKeeper
         String perfOperation = null;
         Integer perfErrorCode = null;
 
+        if (e.getErrorMessage() != null) {
+            builder = builder.header(PerfLogConstants.HEADER_PERF_GEMATIKCODE, e.getErrorMessage().getGematikCode());
+        }
         if (e.getErrorMessage() == ErrorCodes.AUTH_OCSP_ERROR_NO_RESPONSE) {
             perfOperation = PerfLogConstants.IDP_PERF_OCSP_OPERATION;
             perfErrorCode = PerfLogConstants.IDP_PERF_ERROR_NO_RESPONSE;
         }
-        else if (e.getErrorMessage() == ErrorCodes.EXTAUTH_IDP_NOT_AVAILABLE) {
+        else if (e.getErrorMessage() == ErrorCodes.FEDAUTH_IDP_NOT_AVAILABLE) {
             perfOperation = PerfLogConstants.IDP_PERF_SEK_IDP_OPERATION;
             perfErrorCode = PerfLogConstants.IDP_PERF_SEK_IDP_ERROR_NO_RESPONSE;
         }
-        else if (e.getErrorMessage() == ErrorCodes.EXTAUTH_FAILED_TO_REDEEM ||
-            e.getErrorMessage() == ErrorCodes.EXTAUTH_INVALID_ID_TOKEN) {
+        else if (e.getErrorMessage() == ErrorCodes.FEDAUTH_FAILED_TO_REDEEM ||
+                 e.getErrorMessage() == ErrorCodes.FEDAUTH_INVALID_ID_TOKEN) {
             perfOperation = PerfLogConstants.IDP_PERF_SEK_IDP_OPERATION;
             perfErrorCode = PerfLogConstants.IDP_PERF_SEK_IDP_ERROR_INVALID_RESPONSE;
         }

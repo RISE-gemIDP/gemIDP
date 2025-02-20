@@ -11,7 +11,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @Schema(name = "SignedAuthenticationData")
 public class SignedAuthenticationDataRequest {
 
-    @Schema(required = true, name = "signed_authentication_data")
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED, name = "signed_authentication_data")
     @JsonProperty("signed_authentication_data")
     private String signedAuthenticationData;
 

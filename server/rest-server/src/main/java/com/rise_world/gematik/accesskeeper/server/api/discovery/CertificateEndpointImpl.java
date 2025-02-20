@@ -11,7 +11,7 @@ import com.rise_world.gematik.idp.server.api.discovery.JsonWebKeys;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response;
 
 import static com.rise_world.gematik.accesskeeper.common.JwkUtils.transform;
 

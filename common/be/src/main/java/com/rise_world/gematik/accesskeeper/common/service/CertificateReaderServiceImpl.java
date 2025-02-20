@@ -43,6 +43,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static com.rise_world.gematik.accesskeeper.common.crypt.CryptoConstants.BOUNCY_CASTLE;
+import static com.rise_world.gematik.accesskeeper.common.token.ClaimUtils.IK_PATTERN;
 import static com.rise_world.gematik.accesskeeper.common.token.ClaimUtils.KVNR_PATTERN;
 import static com.rise_world.gematik.accesskeeper.common.token.ClaimUtils.MAX_LENGTH_NAME;
 import static com.rise_world.gematik.accesskeeper.common.token.ClaimUtils.MAX_LENGTH_TELEMATIK_ID;
@@ -129,6 +130,7 @@ public class CertificateReaderServiceImpl implements CertificateReaderService {
         cardClaims.put(ClaimUtils.GIVEN_NAME, null);
         cardClaims.put(ClaimUtils.DISPLAY_NAME, null);
         cardClaims.put(ClaimUtils.ORG_NAME, null);
+        cardClaims.put(ClaimUtils.ORG_IK_NUMBER, null);
 
         addNameClaims(cardClaims, certificate, cardType);
         addProfessionClaims(cardClaims, certificate, cardType);
@@ -152,6 +154,11 @@ public class CertificateReaderServiceImpl implements CertificateReaderService {
                 LOG.warn("{} required claims 'given_name' or 'family_name' not available", cardType);
                 throw new CertReaderException("required claims are not available");
             }
+        }
+
+        if (cardType == CardType.EGK && cardClaims.get(ClaimUtils.ORG_IK_NUMBER) == null) {
+            LOG.warn("{} required claim 'organizationIK' not available", cardType);
+            throw new CertReaderException("organizationIK is not available");
         }
 
         if (cardType == CardType.SMCB && cardClaims.get(ClaimUtils.ORG_NAME) == null) {
@@ -204,6 +211,9 @@ public class CertificateReaderServiceImpl implements CertificateReaderService {
                 }
                 else if (cardType == CardType.EGK && X509ObjectIdentifiers.organization.equals((attribute.getType()))) {
                     cardClaims.put(ClaimUtils.ORG_NAME, value);
+                }
+                else if (cardType == CardType.EGK && BCStyle.OU.equals(attribute.getType()) && value != null && IK_PATTERN.matcher(value).matches()) {
+                    cardClaims.put(ClaimUtils.ORG_IK_NUMBER, value);
                 }
                 else if (cardType == CardType.EGK && BCStyle.OU.equals(attribute.getType()) && value != null && KVNR_PATTERN.matcher(value).matches()) {
                     cardClaims.put(ClaimUtils.ID_NUMBER, value);

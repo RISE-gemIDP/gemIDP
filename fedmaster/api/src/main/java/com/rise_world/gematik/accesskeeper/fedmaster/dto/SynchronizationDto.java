@@ -15,27 +15,9 @@ import java.io.Serializable;
 
 public class SynchronizationDto implements Serializable {
 
-    private boolean synchronization = false;
-    private boolean monitoring = false;
     private String traceId;
     private String spanId;
     private Long participantId;
-
-    public boolean isSynchronization() {
-        return synchronization;
-    }
-
-    public void setSynchronization(boolean synchronization) {
-        this.synchronization = synchronization;
-    }
-
-    public boolean isMonitoring() {
-        return monitoring;
-    }
-
-    public void setMonitoring(boolean monitoring) {
-        this.monitoring = monitoring;
-    }
 
     public String getTraceId() {
         return traceId;
@@ -64,8 +46,6 @@ public class SynchronizationDto implements Serializable {
     @Override
     public String toString() {
         return "SynchronizationDto{" +
-            "synchronization=" + synchronization +
-            ", monitoring=" + monitoring +
             ", traceId='" + traceId + '\'' +
             ", spanId='" + spanId + '\'' +
             ", participantId=" + participantId +

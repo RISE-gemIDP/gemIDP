@@ -10,7 +10,6 @@ import com.rise_world.gematik.accesskeeper.common.exception.ErrorMessage;
 import com.rise_world.gematik.accesskeeper.common.token.ClaimUtils;
 import com.rise_world.gematik.accesskeeper.common.token.extraction.validation.ClaimValidation;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.Validate;
 import org.apache.cxf.rs.security.jose.jwe.JweCompactConsumer;
 import org.apache.cxf.rs.security.jose.jwe.JweDecryptionProvider;
 import org.apache.cxf.rs.security.jose.jwe.JweException;
@@ -45,7 +44,7 @@ public class JweTokenParser implements TokenParser {
     @SafeVarargs
     public JweTokenParser(JweDecryptionProvider decryption, ErrorMessage parsingError,
                           Function<IdpJwsJwtCompactConsumer, Object> expiryExtractor, ClaimValidation<JweHeaders>... headerValidation) {
-        this.decryption = Validate.notNull(decryption);
+        this.decryption = Objects.requireNonNull(decryption);
         this.expiryExtractor = expiryExtractor;
         this.headerValidation = headerValidation;
         this.parsingError = parsingError;

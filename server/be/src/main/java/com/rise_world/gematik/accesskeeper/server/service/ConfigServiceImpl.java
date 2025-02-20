@@ -15,7 +15,6 @@ import com.rise_world.gematik.accesskeeper.server.model.Client;
 import com.rise_world.gematik.accesskeeper.server.model.Fachdienst;
 import com.rise_world.gematik.accesskeeper.server.model.InfoModel;
 import com.rise_world.gematik.accesskeeper.server.model.Scope;
-import com.rise_world.gematik.accesskeeper.server.model.SektorApp;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,7 +22,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 
 import java.io.File;
 import java.io.IOException;
@@ -35,7 +34,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -43,16 +41,17 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Service
-@SuppressWarnings("fb-contrib:FCBL_FIELD_COULD_BE_LOCAL")
+@SuppressWarnings({"fb-contrib:FCBL_FIELD_COULD_BE_LOCAL", "fb-contrib:DMC_DUBIOUS_MAP_COLLECTION"})
 public class ConfigServiceImpl implements ConfigService {
 
     private static final Logger LOG = LoggerFactory.getLogger(ConfigServiceImpl.class);
     private static final Pattern VS_CHAR = Pattern.compile("[\\x20-\\x7E]+");
     private static final Pattern NQ_CHAR = Pattern.compile("[\\x21\\x23-\\x5B\\x5D-\\x7E]+");
 
-    private String configLocation;
+    private final String configLocation;
 
     // init() creates and populates the cache. afterwards there are only reads - no writes
     // therefore it's safe to mark a non-primitive field as volatile
@@ -104,7 +103,6 @@ public class ConfigServiceImpl implements ConfigService {
         addFachdienste(newCache, infoModel);
         addScopes(newCache, infoModel);
         addClients(newCache, infoModel);
-        addSektorApps(newCache, infoModel);
 
         this.cache = newCache;
     }
@@ -117,6 +115,14 @@ public class ConfigServiceImpl implements ConfigService {
         if (StringUtils.isEmpty(infoModel.getIssuerInet())) {
             LOG.error("infomodel: issuer_internet is required");
             throw new ConfigException("issuer_internet is not configured");
+        }
+        if (StringUtils.isEmpty(infoModel.getAuthServerClientName())) {
+            LOG.error("infomodel: auth_server_client_name is required");
+            throw new ConfigException("auth_server_client_name is not configured");
+        }
+        if (StringUtils.isEmpty(infoModel.getAuthServerOrganizationName())) {
+            LOG.error("infomodel: auth_server_organization_name is not configured");
+            throw new ConfigException("auth_server_organization_name is not configured");
         }
         if (StringUtils.isEmpty(infoModel.getPairingEndpoint())) {
             LOG.error("infomodel: pairing endpoint is required");
@@ -196,27 +202,6 @@ public class ConfigServiceImpl implements ConfigService {
         }
     }
 
-    private void addSektorApps(ConfigCache newCache, InfoModel infoModel) {
-        final Map<String, SektorApp> sektorAppMap = newCache.sektorAppMap;
-        final Set<String> processedIds = new HashSet<>();
-
-        for (SektorApp s : infoModel.getSektorApps()) {
-
-            if (isValidSektorApp(processedIds, s)) {
-                sektorAppMap.put(s.getId(), s);
-            }
-            else {
-                if (s.getId() != null) {
-                    sektorAppMap.remove(s.getId());
-                    newCache.invalidSektorAppIds.add(s.getId());
-                }
-                newCache.effectiveInfoModel.getSektorApps().removeIf(s::equals);
-            }
-
-            processedIds.add(s.getId());
-        }
-    }
-
     private boolean isValidFachdienst(Set<String> processedIds, Fachdienst f) {
         if (!isValidVsChar("fachdienst_id", 32, f.getId())) {
             return false;
@@ -293,34 +278,6 @@ public class ConfigServiceImpl implements ConfigService {
         return true;
     }
 
-    private boolean isValidSektorApp(Set<String> processedIds, SektorApp s) {
-        if (!isValidVsChar("sektor_app_id", 32, s.getId())) {
-            return false;
-        }
-
-        if (StringUtils.isEmpty(s.getName()) || s.getName().length() > 128) {
-            LOG.error("infomodel: sektor_app {} has an invalid name: {}", s.getId(), s.getName());
-            return false;
-        }
-
-        if (!isValidIssuerUrl(s.getIdpIss())) {
-            LOG.error("infomodel: sektor_app {} has an invalid issuer url: {}", s.getId(), s.getIdpIss());
-            return false;
-        }
-
-        if (!isValidRedirectUri(s.getKkAppUri())) {
-            LOG.error("infomodel: sektor_app {} has an invalid kk_app_uri: {}", s.getId(), s.getKkAppUri());
-            return false;
-        }
-
-        if (processedIds.contains(s.getId())) {
-            LOG.error("infomodel: duplicate sektor_app_id: {}", s.getId());
-            return false;
-        }
-
-        return true;
-    }
-
     // @AFO: A_20434 - die Liste der redirect URIs darf nicht leer sein
     // @AFO: A_20434 - Validierung der redirect URI laut RFC
     private boolean isValidClient(Set<String> processedIds, Client c) {
@@ -346,24 +303,6 @@ public class ConfigServiceImpl implements ConfigService {
         }
 
         return true;
-    }
-
-    private boolean isValidIssuerUrl(String issuer) {
-        if (StringUtils.isEmpty(issuer)) {
-            return false;
-        }
-
-        try {
-            URI u = new URI(issuer);
-            if (!"https".equalsIgnoreCase(u.getScheme()) || u.getHost() == null || u.getQuery() != null || u.getFragment() != null) {
-                throw new IllegalArgumentException();
-            }
-            validatePort(u);
-            return true;
-        }
-        catch (IllegalArgumentException | URISyntaxException | MalformedURLException e) {
-            return false;
-        }
     }
 
     private boolean isValidRedirectUri(String redirectUri) {
@@ -448,6 +387,21 @@ public class ConfigServiceImpl implements ConfigService {
     }
 
     @Override
+    public Set<String> getIssuers() {
+        return cache.issuers;
+    }
+
+    @Override
+    public String getAuthServerClientName() {
+        return cache.authServerClientName;
+    }
+
+    @Override
+    public String getAuthServerOrganizationName() {
+        return cache.authServerOrganizationName;
+    }
+
+    @Override
     public String getPairingEndpoint() {
         return cache.pairingEndpoint;
     }
@@ -480,13 +434,12 @@ public class ConfigServiceImpl implements ConfigService {
     }
 
     @Override
-    public SektorApp getSektorAppById(String appId) {
-        return cache.sektorAppMap.get(appId);
-    }
-
-    @Override
-    public Collection<SektorApp> getSektorApps() {
-        return cache.sektorAppMap.values();
+    public Set<String> getRedirectUrisForEntityStatement() {
+        return cache.clientMap.values().stream()
+            .filter(Client::isRedirectUrisInES)
+            .map(Client::getValidRedirectUris)
+            .flatMap(List::stream)
+            .collect(Collectors.toCollection(TreeSet::new));
     }
 
     @Override
@@ -528,6 +481,9 @@ public class ConfigServiceImpl implements ConfigService {
         private final InfoModel effectiveInfoModel;
         private final String issuerTi;
         private final String issuerInternet;
+        private final Set<String> issuers;
+        private final String authServerClientName;
+        private final String authServerOrganizationName;
         private final String pairingEndpoint;
         private final String salt;
 
@@ -538,7 +494,6 @@ public class ConfigServiceImpl implements ConfigService {
         private final Map<String, Scope> scopeMap = new HashMap<>();
         private final Map<String, Fachdienst> fachdienstMap = new HashMap<>();
         private final Map<String, Fachdienst> scopeFachdienstMap = new HashMap<>();
-        private final Map<String, SektorApp> sektorAppMap = new HashMap<>();
 
         private final Set<String> invalidClientIds = new TreeSet<>();
         private final Set<String> invalidFachdienstIds = new TreeSet<>();
@@ -551,6 +506,9 @@ public class ConfigServiceImpl implements ConfigService {
 
             this.issuerTi = infoModel.getIssuerTi();
             this.issuerInternet = infoModel.getIssuerInet();
+            this.issuers = Set.of(this.issuerInternet, this.issuerTi);
+            this.authServerClientName = infoModel.getAuthServerClientName();
+            this.authServerOrganizationName = infoModel.getAuthServerOrganizationName();
             this.pairingEndpoint = infoModel.getPairingEndpoint();
             this.salt = infoModel.getSalt();
             this.challengeTimeout = infoModel.getChallengeExpires();

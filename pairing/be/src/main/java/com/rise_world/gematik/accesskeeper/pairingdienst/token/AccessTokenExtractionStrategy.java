@@ -69,7 +69,7 @@ public class AccessTokenExtractionStrategy extends AbstractClaimExtractionStrate
             // @AFO: A_20372 Access Token wird auf gültiges IAT Feld geprüft
             // @AFO: A_21411 Fehlerfall: ungültiger IAT
             new IssuedAtValidation(clock, REG1_CLIENT_ERROR, iatLeeway), // @AFO: A_21411 Fehlerfall: ungültiger IAT
-            // @AFO: A_20365 Prüfung der Signatur gegen den öffentlichen Schlüssel des IdP
+            // @AFO: A_20365-01 Prüfung der Signatur gegen den öffentlichen Schlüssel des IdP
             // @AFO: A_21411 Fehlerfall: ungültige IdP Signatur
             new ServerSignatureValidation(keyProvider, REG1_CLIENT_ERROR));
     }

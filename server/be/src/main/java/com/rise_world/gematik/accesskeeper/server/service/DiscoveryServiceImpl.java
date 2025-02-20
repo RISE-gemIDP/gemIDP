@@ -65,8 +65,6 @@ public class DiscoveryServiceImpl implements DiscoveryService {
             discoveryClaims.setProperty("uri_pair", configService.getPairingEndpoint() + "/pairings");
 
             // external authentication claims
-            discoveryClaims.setProperty("kk_app_list_uri", issuer + "/directory/kk_apps");
-            discoveryClaims.setProperty("third_party_authorization_endpoint", issuer + "/extauth");
             discoveryClaims.setProperty("fed_idp_list_uri", issuer + "/directory/fed_idp_list");
             discoveryClaims.setProperty("federation_authorization_endpoint", issuer + "/fedauth");
         }

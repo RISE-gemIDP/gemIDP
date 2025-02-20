@@ -16,10 +16,12 @@ public enum StatusCode {
     // status codes entity statement synchronization
     NOT_REACHABLE(100, WARN),
     MAX_DOWNTIME_REACHED(101, ERROR),
+    INVALID_SUB(102, ERROR),
     KID_UNKNOWN(200, ERROR),
     SIGNATURE_INVALID(201, ERROR),
+    UNSUPPORTED_SIGNATURE_ALGORITHM(202, ERROR),
     TOKEN_INVALID(300, ERROR),
-    SCOPES_INVALID(301, ERROR),
+    REGISTRATION_DATA_INVALID(301, ERROR),
     TECHNICAL(400, ERROR),
 
     // status codes certificate transparency monitoring

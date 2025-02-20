@@ -28,6 +28,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 import static com.rise_world.gematik.accesskeeper.common.crypt.KeyConstants.PUK_IDP_ENC_SEK;
 import static com.rise_world.gematik.accesskeeper.common.crypt.KeyConstants.PUK_IDP_SIG_SEK;
@@ -63,6 +64,7 @@ public class AuthServerEntityStatementServiceImpl implements AuthServerEntitySta
         Instant now = clock.instant();
         long epochSecond = now.getEpochSecond();
         String issuer = configService.getIssuer(RequestSource.INTERNET);
+        Set<String> redirectUris = configService.getRedirectUrisForEntityStatement();
 
         // create claims
         JwtClaims claims = new JwtClaims();
@@ -74,13 +76,17 @@ public class AuthServerEntityStatementServiceImpl implements AuthServerEntitySta
         claims.setClaim("jwks", new JsonWebKeys(createJsonWebKeyForSignature()));
         claims.setClaim("authority_hints", Collections.singletonList(config.getIssuer()));
 
+        JwtClaims metadata = new JwtClaims();
+        claims.setClaim("metadata", metadata);
+
         JwtClaims relyingPartyEntity = new JwtClaims();
+        metadata.setClaim("openid_relying_party", relyingPartyEntity);
         List<JsonWebKey> keys = new ArrayList<>();
         keys.add(createJsonWebKeyForIdTokenEncryption());
         keys.addAll(selfSignedCertificateService.getValidKeys());
         relyingPartyEntity.setClaim("jwks", new JsonWebKeys(keys));
-        relyingPartyEntity.setClaim("client_name", issuer);
-        relyingPartyEntity.setClaim("redirect_uris", Collections.singletonList(issuer + "/fedauth"));
+        relyingPartyEntity.setClaim("client_name", configService.getAuthServerClientName());
+        relyingPartyEntity.setClaim("redirect_uris", redirectUris);
         relyingPartyEntity.setClaim("response_types", Collections.singletonList(OAuth2Constants.RESPONSE_TYPE_CODE));
         relyingPartyEntity.setClaim("client_registration_types", Collections.singletonList("automatic"));
         relyingPartyEntity.setClaim("grant_types", Collections.singletonList(OAuth2Constants.GRANT_TYPE_CODE));
@@ -92,7 +98,11 @@ public class AuthServerEntityStatementServiceImpl implements AuthServerEntitySta
         relyingPartyEntity.setClaim("id_token_encrypted_response_alg", KeyAlgorithm.ECDH_ES_DIRECT.getJwaName());
         relyingPartyEntity.setClaim("id_token_encrypted_response_enc", ContentAlgorithm.A256GCM.getJwaName());
         relyingPartyEntity.setClaim("scope", "openid urn:telematik:display_name urn:telematik:versicherter");
-        claims.setClaim("metadata", new JwtClaims().setClaim("openid_relying_party", relyingPartyEntity));
+        relyingPartyEntity.setClaim("organization_name", configService.getAuthServerOrganizationName());
+
+        JwtClaims federationEntity = new JwtClaims();
+        metadata.setClaim("federation_entity", federationEntity);
+        federationEntity.setClaim("name",  configService.getAuthServerClientName());
 
         return tokenStrategy.toToken(claims);
     }

@@ -5,7 +5,7 @@
  */
 package com.rise_world.gematik.accesskeeper.server.configuration;
 
-import com.fasterxml.jackson.jaxrs.json.JacksonJsonProvider;
+import com.fasterxml.jackson.jakarta.rs.json.JacksonJsonProvider;
 import com.rise_world.gematik.accesskeeper.common.configuration.CxfTracingHeaderInterceptor;
 import com.rise_world.gematik.accesskeeper.common.util.LoggingInvocationHandler;
 import com.rise_world.gematik.idp.server.api.federation.FederationEndpoint;

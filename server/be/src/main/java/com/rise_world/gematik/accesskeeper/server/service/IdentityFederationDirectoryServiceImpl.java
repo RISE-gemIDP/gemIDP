@@ -11,10 +11,8 @@ import com.rise_world.gematik.accesskeeper.common.exception.ErrorCodes;
 import com.rise_world.gematik.accesskeeper.common.token.creation.TokenCreationStrategy;
 import com.rise_world.gematik.accesskeeper.common.token.extraction.parser.IdpJwsJwtCompactConsumer;
 import com.rise_world.gematik.accesskeeper.server.dto.OpenidProviderDTO;
-import com.rise_world.gematik.accesskeeper.server.model.SektorApp;
 import com.rise_world.gematik.idp.server.api.federation.FederationEndpoint;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.Validate;
 import org.apache.cxf.rs.security.jose.jwa.SignatureAlgorithm;
 import org.apache.cxf.rs.security.jose.jws.JwsJwtCompactConsumer;
 import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
@@ -23,8 +21,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
-import javax.ws.rs.ProcessingException;
-import javax.ws.rs.WebApplicationException;
+import jakarta.ws.rs.ProcessingException;
+import jakarta.ws.rs.WebApplicationException;
 import java.net.ConnectException;
 import java.net.NoRouteToHostException;
 import java.net.SocketTimeoutException;
@@ -34,6 +32,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import static com.rise_world.gematik.accesskeeper.common.crypt.KeyConstants.PUK_FEDMASTER_SIG;
 
@@ -55,17 +54,14 @@ public class IdentityFederationDirectoryServiceImpl implements IdentityFederatio
 
     private final FederationEndpoint federationEndpoint;
     private final KeyProvider keyProvider;
-    private final ConfigService configService;
     private final TokenCreationStrategy discStrategy;
 
     public IdentityFederationDirectoryServiceImpl(FederationEndpoint federationEndpoint,
                                                   KeyProvider keyProvider,
-                                                  ConfigService configService,
                                                   @Qualifier("discStrategy") TokenCreationStrategy discStrategy) {
         this.federationEndpoint = federationEndpoint;
         this.keyProvider = keyProvider;
         this.discStrategy = discStrategy;
-        this.configService = configService;
     }
 
     @Override
@@ -81,15 +77,7 @@ public class IdentityFederationDirectoryServiceImpl implements IdentityFederatio
             idp.put(IDP_LOGO, sektorIdp.getLogoUri());
             allFederatedIps.add(idp);
         }
-        for (SektorApp sektorApp : configService.getSektorApps()) {
-            Map<String, Object> idp = new HashMap<>();
-            idp.put(FED_IDP_NAME, sektorApp.getName());
-            idp.put(IDP_ISS, sektorApp.getId());
-            idp.put(IDP_SEK_2, Boolean.FALSE);
-            idp.put(IDP_PKV, Boolean.FALSE);
-            idp.put(IDP_LOGO, "");
-            allFederatedIps.add(idp);
-        }
+
         // A_23683: analog zu A_20591-01 wird die 'discStrategy' verwendet um den Token mit PrK_DISC_SIG zu signieren.
         return discStrategy.toToken(new JwtClaims(Collections.singletonMap(FED_IDP_LIST, allFederatedIps)));
     }
@@ -128,7 +116,7 @@ public class IdentityFederationDirectoryServiceImpl implements IdentityFederatio
             JwtClaims claims = consumer.getJwtClaims();  // trigger token parsing
 
             sekIdps = claims.getListMapProperty("idp_entity");
-            Validate.notNull(sekIdps);
+            Objects.requireNonNull(sekIdps);
         }
         catch (Exception e) {
             throw new AccessKeeperException(ErrorCodes.FED_TOKEN_INVALID, e);

@@ -28,6 +28,7 @@ import java.util.regex.Pattern;
 public class ClaimUtils {
 
     public static final Pattern KVNR_PATTERN = Pattern.compile("[A-Z][0-9]{9}");
+    public static final Pattern IK_PATTERN = Pattern.compile("[0-9]{9}");
     public static final int MAX_LENGTH_NAME = 64;
     public static final int MAX_LENGTH_TELEMATIK_ID = 128;
     public static final int MAX_LENGTH_DISPLAY_NAME = 1000;
@@ -46,7 +47,7 @@ public class ClaimUtils {
     public static final String ORG_NAME = "organizationName";
     public static final String PROFESSION = "professionOID";
     public static final String ID_NUMBER = "idNummer";
-    public static final String SEK_IDP_ORG_NUMBER = "organization_number";
+    public static final String ORG_IK_NUMBER = "organizationIK";
 
     public static final String URN_PROFESSION = "urn:telematik:claims:profession";
     public static final String URN_DISPLAY_NAME = "urn:telematik:claims:display_name";
@@ -80,12 +81,13 @@ public class ClaimUtils {
     public static final String JWT_CTY_VALUE = "JWT";
     public static final String PROFESSION_OID_VERSICHERTER = "1.2.276.0.76.4.49";
 
-    public static final List<String> CARD_CLAIMS = Collections.unmodifiableList(Arrays.asList(GIVEN_NAME, FAMILY_NAME, ORG_NAME, PROFESSION, ID_NUMBER, DISPLAY_NAME));
+    public static final List<String> CARD_CLAIMS = Collections.unmodifiableList(Arrays.asList(GIVEN_NAME, FAMILY_NAME, ORG_NAME, PROFESSION, ID_NUMBER, ORG_IK_NUMBER,
+        DISPLAY_NAME));
 
     public static final String SSO_GRANT_TYPE_CERT = "cert";
-    public static final String SSO_GRANT_TYPE_EXTTOKEN = "exttoken";
     public static final String SSO_GRANT_TYPE_FEDTOKEN = "fedtoken";
-    public static final Set<String> SSO_GRANT_TYPES = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(SSO_GRANT_TYPE_CERT, SSO_GRANT_TYPE_EXTTOKEN)));
+    public static final Set<String> SSO_GRANT_TYPES = Collections.unmodifiableSet(
+        new HashSet<>(Arrays.asList(SSO_GRANT_TYPE_CERT, SSO_GRANT_TYPE_FEDTOKEN)));
 
     private static final Logger LOG = LoggerFactory.getLogger(ClaimUtils.class);
 

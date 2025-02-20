@@ -5,7 +5,7 @@
  */
 package com.rise_world.gematik.accesskeeper.common.crypt.kms;
 
-import com.fasterxml.jackson.jaxrs.json.JacksonJsonProvider;
+import com.fasterxml.jackson.jakarta.rs.json.JacksonJsonProvider;
 import com.rise_world.gematik.accesskeeper.common.configuration.CxfTracingHeaderInterceptor;
 import com.rise_world.gematik.accesskeeper.common.util.LoggingInvocationHandler;
 import com.rise_world.gematik.idp.kms.api.rest.CertificateResource;

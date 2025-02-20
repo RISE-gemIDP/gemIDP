@@ -12,13 +12,12 @@ import com.rise_world.gematik.accesskeeper.server.service.ConfigService;
 import com.rise_world.gematik.accesskeeper.common.token.ClaimUtils;
 import com.rise_world.gematik.accesskeeper.common.token.extraction.parser.IdpJwsJwtCompactConsumer;
 import com.rise_world.gematik.accesskeeper.common.token.extraction.validation.ClaimValidation;
-import com.rise_world.gematik.accesskeeper.server.service.RequestContext;
-import org.apache.commons.lang3.Validate;
 import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
+import java.util.Objects;
 
 /**
  * Validates token type, issuer and required claims
@@ -33,7 +32,7 @@ public class ContentValidation implements ClaimValidation<IdpJwsJwtCompactConsum
     private ErrorMessage errorMessage;
 
     public ContentValidation(ConfigService configService, TokenType tokenType, String[] requiredClaims, ErrorMessage errorMessage) {
-        Validate.notNull(tokenType);
+        Objects.requireNonNull(tokenType);
 
         this.configService = configService;
         this.tokenType = tokenType;
@@ -45,7 +44,7 @@ public class ContentValidation implements ClaimValidation<IdpJwsJwtCompactConsum
     public void validate(IdpJwsJwtCompactConsumer token) {
         JwtClaims claims = token.getJwtClaims();
 
-        if (!configService.getIssuer(RequestContext.getRequestSource()).equals(claims.getIssuer())) {
+        if (!configService.getIssuers().contains(claims.getIssuer())) {
             LOG.warn("Configured issuer and token issuer don't match");
             throw new AccessKeeperException(errorMessage);
         }

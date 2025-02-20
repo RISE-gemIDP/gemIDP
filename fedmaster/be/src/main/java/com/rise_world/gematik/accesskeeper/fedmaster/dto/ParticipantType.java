@@ -5,43 +5,29 @@
  */
 package com.rise_world.gematik.accesskeeper.fedmaster.dto;
 
-import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
-
-import java.util.Collections;
+import java.util.stream.Stream;
 
 public enum ParticipantType {
 
     // openid_relying_party
-    RP("openid_relying_party", new JwtClaims()
-        .setClaim("client_registration_types", Collections.singletonList("automatic"))
-    ),
+    RP("openid_relying_party"),
     // openid_provider
-    OP("openid_provider", new JwtClaims()
-        .setClaim("client_registration_types_supported", Collections.singletonList("automatic"))
-    );
+    OP("openid_provider");
 
     private final String type;
-    private final JwtClaims typeClaims;
 
-    ParticipantType(String type, JwtClaims typeClaims) {
+    ParticipantType(String type) {
         this.type = type;
-        this.typeClaims = typeClaims;
     }
 
     public String getType() {
         return type;
     }
 
-    public JwtClaims createDefaultMetadata() {
-        return new JwtClaims().setClaim(type, typeClaims);
-    }
-
     public static ParticipantType getByType(String code) {
-        for (ParticipantType entry : values()) {
-            if (entry.type.equals(code)) {
-                return entry;
-            }
-        }
-        throw new IllegalArgumentException("Unknown type");
+        return Stream.of(values())
+            .filter(type -> type.type.equals(code))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("Unknown participant type " + code));
     }
 }

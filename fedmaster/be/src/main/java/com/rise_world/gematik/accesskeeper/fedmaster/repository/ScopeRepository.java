@@ -5,7 +5,7 @@
  */
 package com.rise_world.gematik.accesskeeper.fedmaster.repository;
 
-import java.util.List;
+import com.rise_world.gematik.accesskeeper.fedmaster.dto.ParticipantScopes;
 
 /**
  * Repository to access openid-relying-party scopes
@@ -14,8 +14,9 @@ public interface ScopeRepository {
 
     /**
      * Fetches all scopes associated to a participant
+     *
      * @param identifier of the participant
-     * @return a list of scopes
+     * @return configured {@link ParticipantScopes}
      */
-    List<String> findByParticipant(Long identifier);
+    ParticipantScopes findByParticipant(Long identifier);
 }

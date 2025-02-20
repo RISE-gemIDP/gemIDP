@@ -5,8 +5,8 @@
  */
 package com.rise_world.gematik.accesskeeper.common.configuration;
 
-import com.fasterxml.jackson.jaxrs.json.JacksonJsonProvider;
-import com.rise_world.epa.certificate.api.rest.CertificateResource;
+import com.fasterxml.jackson.jakarta.rs.json.JacksonJsonProvider;
+import com.rise_world.epa.certificate.api.rest.api.CertificateNonQesApi;
 import com.rise_world.gematik.accesskeeper.common.util.LoggingInvocationHandler;
 import org.apache.cxf.jaxrs.client.Client;
 import org.apache.cxf.jaxrs.client.ClientConfiguration;
@@ -28,12 +28,12 @@ public class CertificateServiceClientConfiguration {
     private static final Logger LOG = LoggerFactory.getLogger(CertificateServiceClientConfiguration.class);
 
     @Bean
-    public CertificateResource certificateResource(@Value("${certificateService.endpoint}") String certificateServiceApiUrl,
-                                                   @Value("${certificateService.connection.timeout}") int certificateServiceConnectionTimeout,
-                                                   @Value("${certificateService.receive.timeout}") int certificateServiceReceiveTimeout,
-                                                   CxfTracingHeaderInterceptor interceptor,
-                                                   JacksonJsonProvider jacksonJsonProvider) {
-        CertificateResource certificateResource = JAXRSClientFactory.create(certificateServiceApiUrl, CertificateResource.class,
+    public CertificateNonQesApi certificateResource(@Value("${certificateService.endpoint}") String certificateServiceApiUrl,
+                                                    @Value("${certificateService.connection.timeout}") int certificateServiceConnectionTimeout,
+                                                    @Value("${certificateService.receive.timeout}") int certificateServiceReceiveTimeout,
+                                                    CxfTracingHeaderInterceptor interceptor,
+                                                    JacksonJsonProvider jacksonJsonProvider) {
+        CertificateNonQesApi certificateResource = JAXRSClientFactory.create(certificateServiceApiUrl, CertificateNonQesApi.class,
             Collections.singletonList(jacksonJsonProvider), true);
 
         Client restClient = WebClient.client(certificateResource);
@@ -50,6 +50,6 @@ public class CertificateServiceClientConfiguration {
         httpClientPolicy.setReceiveTimeout(certificateServiceReceiveTimeout);
 
         WebClient.getConfig(certificateResource).getOutInterceptors().add(interceptor);
-        return LoggingInvocationHandler.createLoggingProxy("CertificateService", CertificateResource.class, certificateResource);
+        return LoggingInvocationHandler.createLoggingProxy("CertificateService", CertificateNonQesApi.class, certificateResource);
     }
 }
